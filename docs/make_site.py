@@ -345,8 +345,8 @@ jobs:
   goalpost:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
       - run: npm ci
@@ -598,7 +598,7 @@ def action_page(card: str) -> tuple[str, str]:
 {pre('''      - uses: intikhab49/goalline@v0
         with:
           command: npx vitest run {files}''')}
-{pre('''      - uses: actions/setup-python@v5
+{pre('''      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: pip install -e . pytest
