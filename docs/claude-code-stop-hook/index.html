@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stop Claude Code from editing tests to pass: a Stop hook</title>
+<meta name="description" content="A Claude Code Stop hook that runs the old tests on the agent&#x27;s work and keeps it working until it restores the behaviour or explains why it changed.">
+<link rel="canonical" href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">
+<link rel="icon" href="https://intikhab49.github.io/goalline/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Intikhab Azam">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="goalline">
+<meta property="og:title" content="Stop Claude Code from editing tests to pass: a Stop hook">
+<meta property="og:description" content="A Claude Code Stop hook that runs the old tests on the agent&#x27;s work and keeps it working until it restores the behaviour or explains why it changed.">
+<meta property="og:url" content="https://intikhab49.github.io/goalline/claude-code-stop-hook/">
+<meta property="og:image" content="https://intikhab49.github.io/goalline/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="goalline: did your agent fix the code, or the test? Old tests replayed on new code.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/plain" href="https://intikhab49.github.io/goalline/llms.txt" title="llms.txt">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://intikhab49.github.io/goalline/claude-code-stop-hook/#article",
+   "headline": "Stop Claude Code from editing tests to pass",
+   "description": "A Claude Code Stop hook that runs the old tests on the agent's work and keeps it working until it restores the behaviour or explains why it changed.",
+   "url": "https://intikhab49.github.io/goalline/claude-code-stop-hook/",
+   "inLanguage": "en",
+   "author": {
+    "@type": "Person",
+    "@id": "https://github.com/intikhab49",
+    "name": "Intikhab Azam",
+    "url": "https://github.com/intikhab49"
+   },
+   "dateModified": "2026-10-24",
+   "isPartOf": {
+    "@id": "https://intikhab49.github.io/goalline/#website"
+   },
+   "about": {
+    "@id": "https://intikhab49.github.io/goalline/#code"
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "goalline",
+     "item": "https://intikhab49.github.io/goalline/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Claude Code hook",
+     "item": "https://intikhab49.github.io/goalline/claude-code-stop-hook/"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<style>
+:root{--ink:#16202c;--muted:#5a6675;--blue:#2a78d6;--coral:#e8553a;--bg:#fbfcfd;--code:#0f1722;--line:#e3e8ee}
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+.top{border-bottom:1px solid var(--line);background:#fff}
+.top div{max-width:980px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center}
+.top a{color:var(--ink);text-decoration:none;font-size:.95rem}
+.top a.brand{font-family:Georgia,serif;font-weight:700;font-size:1.2rem;margin-right:auto}
+main{max-width:980px;margin:0 auto;padding:28px 22px 64px}
+img{max-width:100%;height:auto}
+h1{font-size:2rem;line-height:1.2;margin:22px 0 12px}
+h2{font-size:1.35rem;margin:44px 0 10px}
+h3{font-size:1.02rem;margin:22px 0 4px}
+p.lead{font-size:1.12rem;color:var(--muted)}
+a{color:var(--blue)}
+.crumbs{font-size:.88rem;color:var(--muted)}
+.crumbs a{color:var(--muted)}
+.cta{display:inline-block;margin:8px 10px 0 0;padding:11px 18px;border-radius:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600}
+.cta.alt{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+pre{background:var(--code);color:#dfe7ef;padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:.86rem;line-height:1.5}
+code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+p code,li code,td code{background:#eef2f6;padding:1px 5px;border-radius:4px;font-size:.84em}
+.t{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:#fff}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f3f6f9;font-weight:600}
+.stat{color:var(--coral);font-weight:700}
+ul{padding-left:22px}
+footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
+</style>
+</head>
+<body>
+<header class="top"><div><a class="brand" href="https://intikhab49.github.io/goalline/">goalline</a>
+<a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a><a href="https://intikhab49.github.io/goalline/commands/">Commands</a><a href="https://github.com/intikhab49/goalline">GitHub</a></div></header>
+<main>
+<p class="crumbs"><a href="https://intikhab49.github.io/goalline/">goalline</a> / Claude Code hook</p>
+<h1>Stop Claude Code from editing tests to pass</h1>
+<p class="lead"><code>goalline guard</code> is a Claude Code Stop hook. Before the agent may finish, the old versions of the tests its work edited run against that work. If an old expectation no longer holds, the agent keeps working until it restores the behaviour or records why the change is intended.</p>
+<h2>What the agent sees</h2>
+<p>When Claude Code is about to stop, the hook runs goalpost on the work as it stands, uncommitted files included, against the base branch. If an old test expectation no longer holds, the hook exits 2 and its message goes back to the agent: which tests, with the exact old and new values, and what to do about each one.</p>
+<p>For each one the agent either restores the behaviour or records why the change is intended:</p>
+
+<pre><code>goalline guard --ack &quot;src/cart.spec.ts::Cart applies the discount&quot; --why &quot;the task asks for the discount to apply before tax&quot;</code></pre>
+
+<p>Editing the test to match does not get past the guard, because it runs the <strong>old</strong> version of the test. The reasons form the reviewer's ledger: <code>goalline guard --report</code> prints them as Markdown for the pull request.</p>
+
+<h2>Set it up</h2>
+<p>Install goalline once (<code>npm install -g github:intikhab49/goalline</code>), then add the hook to <code>.claude/settings.json</code>. The timeout is in seconds; a cold Jest run can take more than a minute.</p>
+
+<pre><code>{
+  &quot;hooks&quot;: {
+    &quot;Stop&quot;: [
+      {
+        &quot;hooks&quot;: [
+          { &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;goalline guard --hook --base origin/main -- npx jest {files}&quot;, &quot;timeout&quot;: 600 }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+<p>For a monorepo, add <code>--cwd apps/web</code>. For Vitest or pytest, change the command after <code>--</code>.</p>
+
+<h2>It never traps the agent</h2>
+<ul><li>The guard never blocks because of its own failure: if the check can't run, the agent may stop.</li><li>After <code>--max-blocks</code> identical blocks (default 3), it lets the agent stop with a warning that a person must review the changes.</li><li>Nothing in the checkout changes: the snapshot of the work is a loose git object, not a commit on the branch.</li></ul>
+
+<h2>Other agents</h2>
+<p>The guard is a plain command: run <code>goalline guard -- &lt;test command&gt;</code> as the last step of any agent loop. Exit 2 means an old expectation moved and the work isn't done; exit 0 means it may stop.</p>
+
+<h2>Related</h2>
+<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a>: 19 of 84 test-editing PRs moved an expectation</li><li><a href="https://intikhab49.github.io/goalline/commands/">Commands</a>: every command and option</li></ul>
+
+</main>
+<footer>
+goalline 0.11.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+<a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
+Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
+</footer>
+</body>
+</html>

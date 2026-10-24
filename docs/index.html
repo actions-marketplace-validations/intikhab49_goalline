@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>goalline: catch AI coding agents that edit tests to pass</title>
+<meta name="description" content="Free, open source CLI and GitHub Action. It replays the old tests on the new code, so a test edited to pass shows up with its exact old and new values.">
+<link rel="canonical" href="https://intikhab49.github.io/goalline/">
+<meta name="msvalidate.01" content="8696AEC33B172905558B45B0DB631DAD">
+<link rel="icon" href="https://intikhab49.github.io/goalline/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Intikhab Azam">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="goalline">
+<meta property="og:title" content="goalline: catch AI coding agents that edit tests to pass">
+<meta property="og:description" content="Free, open source CLI and GitHub Action. It replays the old tests on the new code, so a test edited to pass shows up with its exact old and new values.">
+<meta property="og:url" content="https://intikhab49.github.io/goalline/">
+<meta property="og:image" content="https://intikhab49.github.io/goalline/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="goalline: did your agent fix the code, or the test? Old tests replayed on new code.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/plain" href="https://intikhab49.github.io/goalline/llms.txt" title="llms.txt">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "WebSite",
+   "@id": "https://intikhab49.github.io/goalline/#website",
+   "url": "https://intikhab49.github.io/goalline/",
+   "name": "goalline",
+   "inLanguage": "en",
+   "publisher": {
+    "@type": "Person",
+    "@id": "https://github.com/intikhab49",
+    "name": "Intikhab Azam",
+    "url": "https://github.com/intikhab49"
+   }
+  },
+  {
+   "@type": "SoftwareSourceCode",
+   "@id": "https://intikhab49.github.io/goalline/#code",
+   "name": "goalline",
+   "url": "https://intikhab49.github.io/goalline/",
+   "description": "Open source command-line tool and GitHub Action that replays the old tests on the new code, so a test an AI coding agent edited to pass shows up with its exact old and new values. Also keeps signed receipts (in-toto, Ed25519) for every check so CI can skip what the same code already passed, checks that new tests fail on the old code, and runs as a Claude Code Stop hook. Jest, Vitest and pytest.",
+   "codeRepository": "https://github.com/intikhab49/goalline",
+   "programmingLanguage": "JavaScript",
+   "runtimePlatform": "Node.js 20+",
+   "version": "0.11.0",
+   "license": "https://opensource.org/licenses/MIT",
+   "isAccessibleForFree": true,
+   "keywords": "AI coding agents, test integrity, tests edited to pass, reward hacking, Claude Code hook, GitHub Action, regression testing, Jest, Vitest, pytest, test result caching, in-toto",
+   "sameAs": [
+    "https://github.com/intikhab49/goalline",
+    "https://github.com/marketplace/actions/goalline-catch-ai-edited-tests"
+   ],
+   "author": {
+    "@type": "Person",
+    "@id": "https://github.com/intikhab49",
+    "name": "Intikhab Azam",
+    "url": "https://github.com/intikhab49"
+   }
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://intikhab49.github.io/goalline/#faq",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "How do I know if an AI coding agent changed a test to make it pass?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Run the old version of every test the change edited against the new code. If an old test now fails, behaviour changed and the test was rewritten to match. goalline goalpost does exactly that and shows the old and new values, for example Expected 5, received 6."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Why doesn't CI catch a test that was edited to pass?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Because CI runs the new tests on the new code. When a change edits the code and its test in the same diff, the suite passes either way, so a green check can't tell you whether behaviour changed."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Is a flagged pull request a bug?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved so the reviewer can confirm it was intended."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Does goalline use AI or an LLM?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. It runs your own test runner on two versions of your code and compares the results. No source code leaves the machine."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Which test runners does goalline support?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Jest, Vitest and pytest are judged test by test. Any other command is judged file by file, by its exit code."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How do I stop Claude Code from editing tests to pass?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Add goalline guard --hook as a Claude Code Stop hook. Before the agent may finish, the old tests it edited run against its work; a moved expectation sends it back to work until it restores the behaviour or records why the change is intended."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How do I check that a new test actually tests the change?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Run it on the code before the change: it should fail there. goalline prove-red runs every test a change adds against the base code and flags any that already pass."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Can CI skip tests that already passed on the same code?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Yes. goalline run --reuse keeps a signed receipt for every run, keyed by the git tree, and skips a gate that exact code already passed. With --input db=pg, a change to the database schema means it runs again."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Does goalline catch hard-coded answers?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. It catches tests that were edited, not code that special-cases the test's inputs. Hard-coded answers still need hidden tests or mutation testing."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "What does goalline cost, and what does it need?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "It is free and open source (MIT). It needs Node 20 or newer and git, and has zero dependencies: npx github:intikhab49/goalline help runs it without installing anything."
+     }
+    }
+   ]
+  }
+ ]
+}
+</script>
+<style>
+:root{--ink:#16202c;--muted:#5a6675;--blue:#2a78d6;--coral:#e8553a;--bg:#fbfcfd;--code:#0f1722;--line:#e3e8ee}
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+.top{border-bottom:1px solid var(--line);background:#fff}
+.top div{max-width:980px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center}
+.top a{color:var(--ink);text-decoration:none;font-size:.95rem}
+.top a.brand{font-family:Georgia,serif;font-weight:700;font-size:1.2rem;margin-right:auto}
+main{max-width:980px;margin:0 auto;padding:28px 22px 64px}
+img{max-width:100%;height:auto}
+h1{font-size:2rem;line-height:1.2;margin:22px 0 12px}
+h2{font-size:1.35rem;margin:44px 0 10px}
+h3{font-size:1.02rem;margin:22px 0 4px}
+p.lead{font-size:1.12rem;color:var(--muted)}
+a{color:var(--blue)}
+.crumbs{font-size:.88rem;color:var(--muted)}
+.crumbs a{color:var(--muted)}
+.cta{display:inline-block;margin:8px 10px 0 0;padding:11px 18px;border-radius:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600}
+.cta.alt{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+pre{background:var(--code);color:#dfe7ef;padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:.86rem;line-height:1.5}
+code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+p code,li code,td code{background:#eef2f6;padding:1px 5px;border-radius:4px;font-size:.84em}
+.t{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:#fff}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f3f6f9;font-weight:600}
+.stat{color:var(--coral);font-weight:700}
+ul{padding-left:22px}
+footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
+</style>
+</head>
+<body>
+<header class="top"><div><a class="brand" href="https://intikhab49.github.io/goalline/">goalline</a>
+<a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a><a href="https://intikhab49.github.io/goalline/commands/">Commands</a><a href="https://github.com/intikhab49/goalline">GitHub</a></div></header>
+<main>
+
+<img src="header.svg" alt="goalline: goal-line technology for your tests. Prove it passed, skip what's proven, catch what moved." width="980" height="278">
+<h1>Did your coding agent fix the code, or the test?</h1>
+<p class="lead">goalline is a free, open source command-line tool and GitHub Action for teams that use AI coding
+agents. It runs the <strong>old</strong> version of every test a change edited against the <strong>new</strong> code.
+When an old test fails, behaviour changed and the test was rewritten to match, and you see exactly what moved, with
+the old and new values. It also keeps a signed receipt for every check, so nothing that already passed on the same
+code has to run again.</p>
+<a class="cta" href="https://github.com/intikhab49/goalline">View on GitHub</a>
+<a class="cta alt" href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a>
+<a class="cta alt" href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a>
+
+<h2>The problem</h2>
+<p>Coding agents are known to change the test instead of fixing the code. <a href="https://arxiv.org/abs/2510.20270">ImpossibleBench</a> (Zhong, Raghunathan and Carlini, 2025) puts it plainly: "an LLM agent with access to unit tests may delete failing tests rather than fix the underlying bug".</p>
+<p>When a pull request edits the code and its test in the same diff, the suite passes either way. A green check can't tell you whether behaviour changed. goalline can.</p>
+
+<h2>What it catches</h2>
+<p>A change made <code>add(2, 3)</code> return 6 and edited its test's 5 to 6, so every check is green. goalline runs the old test on the new code. This is its real output:</p>
+
+<pre><code>goalline goalpost · example · base main (merge-base 62fac20) → head 94ac494
+
+Old versions of 1 edited or deleted test file(s), run on the new code.
+
+  MOVED   test/add.test.mjs
+          1 of 1 old tests fail on the new code
+            ✗ adds two numbers: Expected 5, received 6
+
+FLAGGED (1 moved). Old tests no longer pass on the new code: behaviour changed and the tests were edited to match. A person should confirm that was intended.</code></pre>
+
+<h2>Prove, skip, catch</h2>
+<div class="t"><table><thead><tr><th></th><th>Commands</th><th>What you get</th></tr></thead><tbody><tr><td><strong>Prove</strong></td><td><code>run</code> · <code>verify</code></td><td>A signed receipt every time a check runs, tied to the exact code it ran on (the git tree). <code>verify</code> says which gates already passed on this code without re-running anything.</td></tr><tr><td><strong>Skip</strong></td><td><code>run --reuse</code> · <code>--rules</code> · <code>--input</code></td><td>Skip a gate this exact code already passed. Rules carry a pass over changes that can't affect the gate, and <code>--input db=pg</code> keeps the database schema on the receipt.</td></tr><tr><td><strong>Catch</strong></td><td><code>goalpost</code> · <code>prove-red</code> · <code>guard</code> · <code>history</code></td><td>Old tests on new code, new tests that must fail on the old code first, a Claude Code Stop hook, and all of it replayed on your merged pull requests.</td></tr></tbody></table></div>
+
+<p>Jest, Vitest and pytest are judged test by test; any other command file by file. Zero dependencies.</p>
+
+<h2>On 200 real pull requests</h2>
+<p>On <a href="https://intikhab49.github.io/goalline/benchmark/">pallets/click</a>'s last 200 merged pull requests, 84 edited an existing test. 63 kept every old test passing and <strong>19 moved an expectation</strong>, each shown with its old and new values; 2 more were low risk. That took about 2 minutes of machine time. A flag is not a bug report: it means a person should look.</p>
+
+<h2>On every pull request</h2>
+<p>The <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> puts the card on the job summary (<a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">on the Marketplace</a>):</p>
+
+<pre><code>name: goalline
+on: pull_request
+jobs:
+  goalpost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - uses: intikhab49/goalline@v0
+        with:
+          command: npx jest {files}</code></pre>
+
+<h2>Inside Claude Code</h2>
+<p>As a <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Stop hook</a>, <code>goalline guard</code> keeps the agent working while an old test expectation no longer holds, until it restores the behaviour or says why the change is intended. In <code>.claude/settings.json</code>:</p>
+
+<pre><code>{
+  &quot;hooks&quot;: {
+    &quot;Stop&quot;: [
+      {
+        &quot;hooks&quot;: [
+          { &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;goalline guard --hook --base origin/main -- npx jest {files}&quot;, &quot;timeout&quot;: 600 }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+
+<h2>Quick start</h2>
+<p>Node 20+ and git, nothing else. Run it from a checkout whose dependencies are installed:</p>
+
+<pre><code># What would it have flagged on your last 200 merged PRs? (writes goalline-history/report.md)
+npx github:intikhab49/goalline history --from-git -- npx jest {files}
+
+# One change, before you merge it: old tests on the new code
+npx github:intikhab49/goalline goalpost --base origin/main -- npx jest {files}
+#   Vitest:  -- npx vitest run {files}
+#   pytest:  -- python -m pytest {files}</code></pre>
+
+<h2>Guides</h2>
+<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How to tell if an AI coding agent edited a test to make it pass</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Stop Claude Code from editing tests to pass</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/github-action/">A GitHub Action that catches tests edited to pass</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">Check that new tests fail on the old code</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip CI tests that the exact same code already passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Test caching that notices when the database schema changed</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Replaying 200 merged pull requests of pallets/click</a>: 19 of 84 test-editing PRs moved an expectation</li><li><a href="https://intikhab49.github.io/goalline/commands/">goalline command reference</a>: every command and option</li></ul>
+
+<h2>FAQ</h2>
+<h3>How do I know if an AI coding agent changed a test to make it pass?</h3><p>Run the old version of every test the change edited against the new code. If an old test now fails, behaviour changed and the test was rewritten to match. <code>goalline goalpost</code> does exactly that and shows the old and new values, for example <code>Expected 5, received 6</code>.</p>
+<h3>Why doesn&#x27;t CI catch a test that was edited to pass?</h3><p>Because CI runs the new tests on the new code. When a change edits the code and its test in the same diff, the suite passes either way, so a green check can't tell you whether behaviour changed.</p>
+<h3>Is a flagged pull request a bug?</h3><p>No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved so the reviewer can confirm it was intended.</p>
+<h3>Does goalline use AI or an LLM?</h3><p>No. It runs your own test runner on two versions of your code and compares the results. No source code leaves the machine.</p>
+<h3>Which test runners does goalline support?</h3><p>Jest, Vitest and pytest are judged test by test. Any other command is judged file by file, by its exit code.</p>
+<h3>How do I stop Claude Code from editing tests to pass?</h3><p>Add <code>goalline guard --hook</code> as a Claude Code Stop hook. Before the agent may finish, the old tests it edited run against its work; a moved expectation sends it back to work until it restores the behaviour or records why the change is intended.</p>
+<h3>How do I check that a new test actually tests the change?</h3><p>Run it on the code before the change: it should fail there. <code>goalline prove-red</code> runs every test a change adds against the base code and flags any that already pass.</p>
+<h3>Can CI skip tests that already passed on the same code?</h3><p>Yes. <code>goalline run --reuse</code> keeps a signed receipt for every run, keyed by the git tree, and skips a gate that exact code already passed. With <code>--input db=pg</code>, a change to the database schema means it runs again.</p>
+<h3>Does goalline catch hard-coded answers?</h3><p>No. It catches tests that were edited, not code that special-cases the test's inputs. Hard-coded answers still need hidden tests or mutation testing.</p>
+<h3>What does goalline cost, and what does it need?</h3><p>It is free and open source (MIT). It needs Node 20 or newer and git, and has zero dependencies: <code>npx github:intikhab49/goalline help</code> runs it without installing anything.</p>
+
+</main>
+<footer>
+goalline 0.11.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+<a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
+Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
+</footer>
+</body>
+</html>

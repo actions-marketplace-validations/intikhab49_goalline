@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub Action: catch tests edited to pass in pull requests</title>
+<meta name="description" content="goalline&#x27;s GitHub Action runs the old tests on each pull request&#x27;s new code and puts every moved expectation, with its values, on the job summary.">
+<link rel="canonical" href="https://intikhab49.github.io/goalline/github-action/">
+<link rel="icon" href="https://intikhab49.github.io/goalline/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Intikhab Azam">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="goalline">
+<meta property="og:title" content="GitHub Action: catch tests edited to pass in pull requests">
+<meta property="og:description" content="goalline&#x27;s GitHub Action runs the old tests on each pull request&#x27;s new code and puts every moved expectation, with its values, on the job summary.">
+<meta property="og:url" content="https://intikhab49.github.io/goalline/github-action/">
+<meta property="og:image" content="https://intikhab49.github.io/goalline/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="goalline: did your agent fix the code, or the test? Old tests replayed on new code.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/plain" href="https://intikhab49.github.io/goalline/llms.txt" title="llms.txt">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://intikhab49.github.io/goalline/github-action/#article",
+   "headline": "A GitHub Action that catches tests edited to pass",
+   "description": "goalline's GitHub Action runs the old tests on each pull request's new code and puts every moved expectation, with its values, on the job summary.",
+   "url": "https://intikhab49.github.io/goalline/github-action/",
+   "inLanguage": "en",
+   "author": {
+    "@type": "Person",
+    "@id": "https://github.com/intikhab49",
+    "name": "Intikhab Azam",
+    "url": "https://github.com/intikhab49"
+   },
+   "dateModified": "2026-10-24",
+   "isPartOf": {
+    "@id": "https://intikhab49.github.io/goalline/#website"
+   },
+   "about": {
+    "@id": "https://intikhab49.github.io/goalline/#code"
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "goalline",
+     "item": "https://intikhab49.github.io/goalline/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "GitHub Action",
+     "item": "https://intikhab49.github.io/goalline/github-action/"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<style>
+:root{--ink:#16202c;--muted:#5a6675;--blue:#2a78d6;--coral:#e8553a;--bg:#fbfcfd;--code:#0f1722;--line:#e3e8ee}
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+.top{border-bottom:1px solid var(--line);background:#fff}
+.top div{max-width:980px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center}
+.top a{color:var(--ink);text-decoration:none;font-size:.95rem}
+.top a.brand{font-family:Georgia,serif;font-weight:700;font-size:1.2rem;margin-right:auto}
+main{max-width:980px;margin:0 auto;padding:28px 22px 64px}
+img{max-width:100%;height:auto}
+h1{font-size:2rem;line-height:1.2;margin:22px 0 12px}
+h2{font-size:1.35rem;margin:44px 0 10px}
+h3{font-size:1.02rem;margin:22px 0 4px}
+p.lead{font-size:1.12rem;color:var(--muted)}
+a{color:var(--blue)}
+.crumbs{font-size:.88rem;color:var(--muted)}
+.crumbs a{color:var(--muted)}
+.cta{display:inline-block;margin:8px 10px 0 0;padding:11px 18px;border-radius:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600}
+.cta.alt{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+pre{background:var(--code);color:#dfe7ef;padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:.86rem;line-height:1.5}
+code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+p code,li code,td code{background:#eef2f6;padding:1px 5px;border-radius:4px;font-size:.84em}
+.t{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:#fff}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f3f6f9;font-weight:600}
+.stat{color:var(--coral);font-weight:700}
+ul{padding-left:22px}
+footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
+</style>
+</head>
+<body>
+<header class="top"><div><a class="brand" href="https://intikhab49.github.io/goalline/">goalline</a>
+<a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a><a href="https://intikhab49.github.io/goalline/commands/">Commands</a><a href="https://github.com/intikhab49/goalline">GitHub</a></div></header>
+<main>
+<p class="crumbs"><a href="https://intikhab49.github.io/goalline/">goalline</a> / GitHub Action</p>
+<h1>A GitHub Action that catches tests edited to pass</h1>
+<p class="lead">The goalline Action runs on every pull request. It replays the old versions of the tests the pull request edited against its new code, and puts a card on the job summary listing every expectation that moved, with the old and new values.</p>
+<h2>Add it to a workflow</h2>
+<pre><code>name: goalline
+on: pull_request
+jobs:
+  goalpost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - uses: intikhab49/goalline@v0
+        with:
+          command: npx jest {files}</code></pre>
+
+<p>The action fetches the history it needs, so the default shallow checkout is fine. It is listed on the <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a>.</p>
+
+<h2>Vitest and pytest</h2>
+<pre><code>      - uses: intikhab49/goalline@v0
+        with:
+          command: npx vitest run {files}</code></pre>
+
+<pre><code>      - uses: actions/setup-python@v5
+        with:
+          python-version: &#x27;3.12&#x27;
+      - run: pip install -e . pytest
+      - uses: intikhab49/goalline@v0
+        with:
+          command: python -m pytest {files}</code></pre>
+
+<h2>Inputs</h2>
+<div class="t"><table><thead><tr><th>Input</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>command</code></td><td>required</td><td>The test command, with {files} where the test files go: npx jest {files}, npx vitest run {files}, python -m pytest {files}.</td></tr><tr><td><code>check</code></td><td><code>goalpost</code></td><td>goalpost (the old tests on the new code) or prove-red (the new tests on the old code).</td></tr><tr><td><code>base</code></td><td>(see description)</td><td>The ref to compare against. Default: origin/&lt;the pull request base branch&gt;, else origin/main.</td></tr><tr><td><code>cwd</code></td><td>(see description)</td><td>The folder the tests run in, inside the repository (for a monorepo).</td></tr><tr><td><code>tests</code></td><td>(see description)</td><td>Globs that say which files are tests, comma separated. Default: the usual names for the runner.</td></tr><tr><td><code>repo</code></td><td>(see description)</td><td>The repository to check. Default: the checked-out workspace.</td></tr><tr><td><code>fail-on-flag</code></td><td><code>true</code></td><td>Fail the step when goalline flags something.</td></tr></tbody></table></div>
+
+<p>Outputs: <code>flagged</code> (<code>true</code> or <code>false</code>) and <code>report</code> (the path of the Markdown card).</p>
+
+<h2>The card on the job summary</h2>
+<p>This is the real card for a change that made <code>add(2, 3)</code> return 6 and edited its test to match, as Markdown:</p>
+
+<pre><code>### Goalpost: 1 test file(s) need a look
+
+The old versions of the tests this change edited or deleted, run on the new code (merge-base `62fac20` → head `94ac494`). An old test that now fails means behaviour changed and the test was edited to match.
+
+**Needs a look**: the change also removed or rewrote lines of the old test.
+
+- `test/add.test.mjs`
+  - ✗ adds two numbers: Expected 5, received 6
+
+&lt;details&gt;&lt;summary&gt;Every file&lt;/summary&gt;
+
+| Test file | Result | Detail |
+|---|---|---|
+| `test/add.test.mjs` | ⚠️ MOVED | 1 of 1 old tests fail on the new code&lt;br&gt;✗ adds two numbers: Expected 5, received 6 |
+
+&lt;/details&gt;
+
+**FLAGGED (1 moved). Old tests no longer pass on the new code: behaviour changed and the tests were edited to match. A person should confirm that was intended.**</code></pre>
+
+<h2>New tests that test nothing</h2>
+<p>With <code>check: prove-red</code>, the action runs the new tests a pull request adds against the base code instead, and flags any that already pass there. See <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>.</p>
+
+<h2>Related</h2>
+<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a>: 19 of 84 test-editing PRs moved an expectation</li><li><a href="https://intikhab49.github.io/goalline/commands/">Commands</a>: every command and option</li></ul>
+
+</main>
+<footer>
+goalline 0.11.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+<a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
+Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
+</footer>
+</body>
+</html>

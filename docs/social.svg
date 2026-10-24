@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img"
+     aria-label="goalline: did your agent fix the code, or the test? Old tests replayed on new code. On
+     pallets/click, 19 of 84 test-editing PRs moved an expectation.">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFB020"/>
+      <stop offset="55%" stop-color="#FF6B4A"/>
+      <stop offset="100%" stop-color="#FF4E88"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF6B4A" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#0A0A14" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0 L0 0 0 28" fill="none" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="640" fill="#0A0A14"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+  <circle cx="1110" cy="90" r="330" fill="url(#fade)"/>
+
+  <text x="72" y="104" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="20" letter-spacing="4" fill="#A3E635">GOAL-LINE
+        TECHNOLOGY &#183; FOR YOUR TESTS</text>
+  <text x="66" y="226" font-family="Georgia,'Times New Roman',serif" font-size="120" font-weight="700"
+        fill="url(#grad)">goalline</text>
+  <text x="72" y="292" font-family="-apple-system,Segoe UI,Helvetica,sans-serif" font-size="34" fill="#E8E8F0">Did your agent fix the code, or the test?</text>
+  <text x="72" y="340" font-family="-apple-system,Segoe UI,Helvetica,sans-serif" font-size="26" fill="#8B8BA7">Old tests replayed on new code. Every moved</text>
+  <text x="72" y="374" font-family="-apple-system,Segoe UI,Helvetica,sans-serif" font-size="26" fill="#8B8BA7">expectation, with its old and new values.</text>
+
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="18">
+    <rect x="72" y="414" width="272" height="40" rx="20" fill="none" stroke="#FFB020" stroke-opacity="0.6"/>
+    <text x="208" y="441" fill="#FFB020" text-anchor="middle">JEST &#183; VITEST &#183; PYTEST</text>
+    <rect x="358" y="414" width="174" height="40" rx="20" fill="none" stroke="#A3E635" stroke-opacity="0.6"/>
+    <text x="445" y="441" fill="#A3E635" text-anchor="middle">GITHUB ACTION</text>
+    <rect x="546" y="414" width="207" height="40" rx="20" fill="none" stroke="#FF4E88" stroke-opacity="0.6"/>
+    <text x="649" y="441" fill="#FF4E88" text-anchor="middle">CLAUDE CODE HOOK</text>
+  </g>
+
+  <text x="72" y="552" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="26" fill="#E8E8F0">$ npx github:intikhab49/goalline</text>
+  <text x="72" y="592" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="19" fill="#8B8BA7">free &#183; open source &#183; MIT &#183; zero dependencies</text>
+
+  <text x="843" y="130" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" letter-spacing="1.5" fill="#8B8BA7">PALLETS/CLICK
+        &#183; 84 TEST-EDITING PRs</text>
+  <g>
+    <rect x="843" y="152" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="874" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="936" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="967" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="998" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1029" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1060" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1091" y="152" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1122" y="152" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1153" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1184" y="152" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="843" y="183" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="874" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="936" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="967" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="998" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1029" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1060" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1091" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1122" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1153" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1184" y="183" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="843" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="874" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="936" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="967" y="214" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="998" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1029" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1060" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1091" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1122" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1153" y="214" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1184" y="214" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="843" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="874" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="936" y="245" width="24" height="24" rx="2" fill="#FFB020" opacity="0.9"/>
+    <rect x="967" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="998" y="245" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1029" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1060" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1091" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1122" y="245" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1153" y="245" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1184" y="245" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="843" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="874" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="276" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="936" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="967" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="998" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1029" y="276" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1060" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1091" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1122" y="276" width="24" height="24" rx="2" fill="#FFB020" opacity="0.9"/>
+    <rect x="1153" y="276" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1184" y="276" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="843" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="874" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="936" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="967" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="998" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1029" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1060" y="307" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1091" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1122" y="307" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1153" y="307" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1184" y="307" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="843" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="874" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="905" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="936" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="967" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="998" y="338" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1029" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1060" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1091" y="338" width="24" height="24" rx="2" fill="#E8E8F0" opacity="0.2"/>
+    <rect x="1122" y="338" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1153" y="338" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+    <rect x="1184" y="338" width="24" height="24" rx="2" fill="url(#grad)" opacity="1"/>
+  </g>
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="26">
+    <text x="843" y="414" fill="#FFFFFF" font-weight="700">19 flagged, with values</text>
+    <text x="843" y="452" fill="#8B8BA7">63 kept every old test</text>
+    <text x="843" y="490" fill="#8B8BA7"> 2 low risk &#183; 0 not judged</text>
+  </g>
+</svg>

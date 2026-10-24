@@ -13,7 +13,7 @@
 [![Runners](https://img.shields.io/badge/jest%20%C2%B7%20vitest%20%C2%B7%20pytest-per%20test-eb6834?style=for-the-badge)](#vitest-and-pytest)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-stop%20hook-24292f?style=for-the-badge&logo=anthropic&logoColor=white)](#stopping-an-agent-that-moved-a-goalpost)
 
-[Why](#why) · [Quick start](#quick-start) · [GitHub Action](#github-action) · [What it does](#what-it-does) · [Benchmark](#benchmark) · [How goalpost works](#how-goalpost-works) · [Commands](#commands) · [Limits](#limits)
+[Website](https://intikhab49.github.io/goalline/) · [Why](#why) · [Quick start](#quick-start) · [GitHub Action](#github-action) · [What it does](#what-it-does) · [Benchmark](#benchmark) · [How goalpost works](#how-goalpost-works) · [Commands](#commands) · [FAQ](#faq) · [Limits](#limits)
 
 </div>
 
@@ -285,6 +285,52 @@ A receipt only counts in `verify` if all of these hold:
 - **Tamper-evident, not forgery-proof.** Everyone on one machine shares one key, so an edited receipt fails verification, but anything running as your user can sign. Receipts catch honest mistakes: the wrong commit, uncommitted edits, a busy machine, a retried test. Unforgeable receipts need signing in CI with the job's own identity, which isn't built yet.
 - **A receipt proves a run happened, not that the tests are good.** That's what `goalpost` and `prove-red` are for.
 - **Nothing secret is stored.** Extra env vars are stored as hashes. No source code leaves the machine.
+
+## FAQ
+
+<!-- faq:start (docs/make_site.py writes this list) -->
+
+### How do I know if an AI coding agent changed a test to make it pass?
+
+Run the old version of every test the change edited against the new code. If an old test now fails, behaviour changed and the test was rewritten to match. `goalline goalpost` does exactly that and shows the old and new values, for example `Expected 5, received 6`.
+
+### Why doesn't CI catch a test that was edited to pass?
+
+Because CI runs the new tests on the new code. When a change edits the code and its test in the same diff, the suite passes either way, so a green check can't tell you whether behaviour changed.
+
+### Is a flagged pull request a bug?
+
+No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved so the reviewer can confirm it was intended.
+
+### Does goalline use AI or an LLM?
+
+No. It runs your own test runner on two versions of your code and compares the results. No source code leaves the machine.
+
+### Which test runners does goalline support?
+
+Jest, Vitest and pytest are judged test by test. Any other command is judged file by file, by its exit code.
+
+### How do I stop Claude Code from editing tests to pass?
+
+Add `goalline guard --hook` as a Claude Code Stop hook. Before the agent may finish, the old tests it edited run against its work; a moved expectation sends it back to work until it restores the behaviour or records why the change is intended.
+
+### How do I check that a new test actually tests the change?
+
+Run it on the code before the change: it should fail there. `goalline prove-red` runs every test a change adds against the base code and flags any that already pass.
+
+### Can CI skip tests that already passed on the same code?
+
+Yes. `goalline run --reuse` keeps a signed receipt for every run, keyed by the git tree, and skips a gate that exact code already passed. With `--input db=pg`, a change to the database schema means it runs again.
+
+### Does goalline catch hard-coded answers?
+
+No. It catches tests that were edited, not code that special-cases the test's inputs. Hard-coded answers still need hidden tests or mutation testing.
+
+### What does goalline cost, and what does it need?
+
+It is free and open source (MIT). It needs Node 20 or newer and git, and has zero dependencies: `npx github:intikhab49/goalline help` runs it without installing anything.
+
+<!-- faq:end -->
 
 ## Limits
 
