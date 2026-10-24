@@ -71,8 +71,10 @@ export function parseSummary(text) {
     r.total = r.passed + r.failed + r.flaky + r.skipped;
     return r;
   }
+  // node --test's summary: "ℹ tests 9" from its spec reporter, "# tests 9" from its TAP one, which
+  // Node 20 and 22 use whenever the output is not a terminal (as here, where goalline reads it).
   const nt = (label) => {
-    const m = last(text, new RegExp(`^ℹ ${label} (\\d+)$`, 'gm'));
+    const m = last(text, new RegExp(`^(?:ℹ|#) ${label}\\s+(\\d+)$`, 'gm'));
     return m ? Number(m[1]) : null;
   };
   if (nt('tests') !== null) {

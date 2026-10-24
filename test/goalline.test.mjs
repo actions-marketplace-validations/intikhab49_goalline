@@ -414,8 +414,9 @@ test('clock: a pass that read the real clock counts until midnight (or --clock-t
   assert.deepEqual(clockOf(home).sites, [[`test/faked.test.mjs:13${F}`, 9], [`test/faked.test.mjs:14${F}`, 3], [`test/faked.test.mjs:16${F}`, 3]]);
   assert.match(r.err, /faked PASSED · .* · reads the real clock \(15 read\(s\), e\.g\. test\/faked\.test\.mjs:13 under fake timers with no fixed time\)/);
 
-  // Without the variable that makes a node --test run inside this one report to it instead.
-  r = cliEnv({ GOALLINE_HOME: home, NODE_TEST_CONTEXT: undefined }, dir, 'run', '--gate', 'mocked', '--no-machine', '--', 'node', '--test', 'test/mocked.test.mjs');
+  // Without the variable that makes a node --test run inside this one report to it instead, and with
+  // the TAP summary Node 20 and 22 print when the output is piped.
+  r = cliEnv({ GOALLINE_HOME: home, NODE_TEST_CONTEXT: undefined }, dir, 'run', '--gate', 'mocked', '--no-machine', '--', 'node', '--test', '--test-reporter=tap', 'test/mocked.test.mjs');
   assert.equal(r.code, 0, r.all);
   assert.deepEqual(clockOf(home), { watched: true, reads: 0, sites: [] });
 
@@ -1356,6 +1357,12 @@ test('parses Jest and Playwright summaries', () => {
   const p = parseSummary('  1 flaky\n    [chromium] › a.spec.ts:3:1 › x\n  53 passed (3.2m)\n');
   assert.deepEqual([p.runner, p.passed, p.flaky, p.total], ['playwright', 53, 1, 54]);
   assert.equal(parseSummary('Compiled successfully\n').runner, 'unknown');
+});
+
+test("parses node --test's summary from its spec reporter and from its TAP one (Node 20 and 22 when the output is piped)", () => {
+  const spec = parseSummary('✖ adds (1.2ms)\nℹ tests 2\nℹ suites 0\nℹ pass 1\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 1\n');
+  const tap = parseSummary('not ok 1 - adds\nok 2 - ok one\n1..2\n# tests 2\n# suites 0\n# pass 1\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 1\n# duration_ms 41.2\n');
+  for (const s of [spec, tap]) assert.deepEqual([s.runner, s.passed, s.failed, s.skipped, s.total], ['node-test', 1, 1, 1, 2]);
 });
 
 test("Jest's Console and Warning headers are never failed tests", () => {
