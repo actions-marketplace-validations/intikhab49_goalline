@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { changedPaths, repoName, repoRoot, workdirTree, workingTree } from './git.mjs';
+import { describeInputs, gateProbes, parseInputs, readInputs } from './inputs.mjs';
 import { cpuWindow, foreignRunners, freeMb, startSampler } from './machine.mjs';
 import { countPatterns, failedTestNames, parsePatterns, parseSummary } from './parse.mjs';
-import { checkBuilds, findCarry, fingerprintOutputs, inconclusiveReason, loadRules, logReuse, logTrial, proofOn, recheckBuilds } from './reuse.mjs';
+import { checkBuilds, findCarry, fingerprintOutputs, inconclusiveReason, loadRules, logReuse, logTrial, proofOn, recheckBuilds, whyNotReused } from './reuse.mjs';
 import { lockDigest } from './scratch.mjs';
 import { ensureKey, signStatement, trustedKeys } from './sign.mjs';
 import { allocReceipt, buildStatement, toolchain, writeReceipt } from './store.mjs';
@@ -40,6 +41,7 @@ export async function cmdRun(opts, command) {
   if (!command.length) throw new UsageError('run needs the command after --');
   const patterns = parsePatterns(opts.count);
   const line = commandLine(command);
+  const given = parseInputs(opts.input);
   const watch = !opts.noMachine;
   // The CPU load is measured across the fingerprinting below (git's own work included), so it
   // costs no extra wait unless that took under half a second.
@@ -56,13 +58,25 @@ export async function cmdRun(opts, command) {
     console.error(`goalline: ${opts.gate}: no receipt will be saved (${err.message}); running the gate anyway`);
     return (await spawnCapture(line, { shell: opts.shell || true })).code;
   }
+  let rules = null;
+  let rulesError = null;
+  try {
+    rules = opts.rules ? loadRules(opts.rules) : null;
+  } catch (err) {
+    rulesError = err;
+  }
+  // What the gate depends on outside the code (a database schema...): read now and after the run.
+  before.probes = gateProbes(given, opts.gate, rules);
+  before.inputs = readInputs(before.probes);
+  for (const [name, r] of Object.entries(before.inputs)) {
+    if (r.error) console.error(`goalline: ${opts.gate}: input ${name} could not be read (${r.error}); this run will not count as proof`);
+  }
   // An earlier pass on this exact code, or, with trusted rules, on code whose changes since can't
   // affect this gate, stands in for running it again. Any doubt, or any error here, runs it.
   let trial = null;
-  let rules = null;
   if (opts.reuse || opts.rules) {
     try {
-      rules = opts.rules ? loadRules(opts.rules) : null;
+      if (rulesError) throw rulesError;
       const reuse = tryReuse({ opts, root, key, before, rules });
       if (reuse?.skipped) return 0;
       trial = reuse?.trial ?? null;
@@ -108,7 +122,7 @@ export async function cmdRun(opts, command) {
 function tryReuse({ opts, root, key, before, rules }) {
   if (opts.trustRules && !opts.rules) throw new UsageError('--trust-rules needs --rules <file>');
   const gate = opts.gate;
-  const req = { runs: Math.max(1, Number(opts.reuseRuns) || 1), idle: !!opts.reuseIdle, keys: trustedKeys() };
+  const req = { runs: Math.max(1, Number(opts.reuseRuns) || 1), idle: !!opts.reuseIdle, keys: trustedKeys(), inputs: before.inputs };
   if (rules?.neverReuse(gate)) {
     // Later gates use what it makes: reused on this exact code only while that output is still
     // the one an earlier pass made, never carried to other code.
@@ -138,6 +152,8 @@ function tryReuse({ opts, root, key, before, rules }) {
   }
   if (opts.reuse) {
     const proof = proofOn(before.tree, gate, req);
+    const why = proof ? null : whyNotReused(before.tree, gate, req);
+    if (why) console.error(`goalline: ${gate}: runs: the earlier pass on this code does not count (${why})`);
     if (proof) {
       const e = proof[0].ext;
       console.error(
@@ -170,6 +186,8 @@ function tryReuse({ opts, root, key, before, rules }) {
       toolchain: toolchain(),
       head: before.head,
       clean: before.clean,
+      // The inputs the carried pass was checked against, so a later verify checks them too.
+      ...(Object.keys(before.inputs).length ? { inputs: before.inputs } : {}),
     };
     const statement = buildStatement({ name: repoName(root), tree: before.tree, head: before.head, clean: before.clean, result: 'PASSED', ext });
     writeReceipt(allocReceipt(before.tree, gate), signStatement(statement, key), null);
@@ -198,6 +216,15 @@ function recordTrial({ opts, root, before, trial, result, inconclusive, ms }) {
 
 function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitCode, output, truncated, startedAt, finishedAt, samples, watch, idleMb, freeMbStart, cpuBusyStartPct, foreignAtStart }) {
   const after = { tree: workdirTree(root, before.realIndex) };
+  // Each input is read again: one that changed while the gate ran was not the one it started on.
+  const inputs = Object.fromEntries(
+    Object.entries(before.inputs).map(([name, r]) => {
+      if (r.error) return [name, r];
+      const end = readInputs({ [name]: before.probes[name] })[name];
+      return [name, { ...r, atEnd: end.sha256 ?? null }];
+    }),
+  );
+  const inputsMoved = Object.keys(inputs).filter((n) => !inputs[n].error && inputs[n].atEnd !== inputs[n].sha256);
 
   const text = stripAnsi(output.toString('utf8'));
   const summary = parseSummary(text);
@@ -248,6 +275,7 @@ function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitC
     treeAtEnd: after.tree,
     changedDuringRun: treeStable ? [] : changedPaths(root, before.tree, after.tree).slice(0, 20),
     lockDigest: lockDigest(root),
+    ...(Object.keys(inputs).length ? { inputs } : {}),
     logSha256: sha256(output),
     logTruncated: truncated,
     // Which passing build run made each build this gate tested, and any build problem.
@@ -274,7 +302,9 @@ function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitC
     fmtDuration(ext.durationMs),
     `tree ${short(before.tree)}${before.clean ? ` = commit ${short(before.head)}` : ' (uncommitted work)'}`,
   ];
+  if (Object.keys(inputs).length) notes.push(describeInputs(inputs));
   if (warnings.length) notes.push(`warnings: ${warnings.join(', ')}`);
+  if (inputsMoved.length) notes.push(`INPUT CHANGED DURING THE RUN (${inputsMoved.join(', ')}), so this receipt will not verify`);
   if (!treeStable) notes.push(`CODE CHANGED DURING THE RUN (${ext.changedDuringRun.slice(0, 3).join(', ')}), so this receipt will not verify`);
   console.error(`\ngoalline: ${opts.gate} ${result} · ${notes.join(' · ')}\ngoalline: saved ${slot.file}`);
   return { result, inconclusive: result === 'FAILED' ? inconclusiveReason({ exitCode, counts: isTest ? summary : null, text }) : null };

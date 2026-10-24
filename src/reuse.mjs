@@ -11,9 +11,10 @@ import { judge } from './verify.mjs';
 
 // The earlier runs of `gate` on `tree` that can stand in for running it again, newest first,
 // or null when there aren't enough: `runs` valid receipts, one made on an idle machine if `idle`.
-export function proofOn(tree, gate, { runs = 1, idle = false, keys }) {
+// `inputs` are fresh readings of what the gate depends on outside the code; null skips that check.
+export function proofOn(tree, gate, { runs = 1, idle = false, keys, inputs = {} }) {
   const valid = listReceipts(tree)
-    .map((e) => judge(e, { tree }, keys))
+    .map((e) => judge(e, { tree, inputs }, keys))
     .filter((r) => r.valid && r.gate === gate && r.kind === 'run')
     .reverse();
   if (valid.length < runs) return null;
@@ -21,16 +22,27 @@ export function proofOn(tree, gate, { runs = 1, idle = false, keys }) {
   return valid;
 }
 
+// Why the newest pass of `gate` on `tree` can't stand in for a run (a changed input, another
+// Node), or null when there is no such pass.
+export function whyNotReused(tree, gate, { keys, inputs = {} }) {
+  const passes = listReceipts(tree)
+    .map((e) => judge(e, { tree, inputs }, keys))
+    .filter((r) => r.authentic && r.gate === gate && r.kind === 'run' && r.st.predicate?.result === 'PASSED' && !r.valid);
+  return passes.at(-1)?.reason || null;
+}
+
 // A rules file names areas of the repo and the areas each gate depends on:
 //   { "neverReuse": ["npm-ci", "*build*"], "outputs": { "web-build": ["apps/web/.next/BUILD_ID"] },
 //     "uses": { "browser": ["web-build"] }, "ignore": ["**/*.md"],
-//     "areas": { "api": ["apps/api/**"], "types": ["packages/**"] }, "gates": { "api-*": ["api", "types"] } }
+//     "areas": { "api": ["apps/api/**"], "types": ["packages/**"] }, "gates": { "api-*": ["api", "types"] },
+//     "inputs": { "api-*": ["db"] } }
 // A changed file in no area at all (a lockfile, CI config, anything new) can affect every gate.
 export function loadRules(file) {
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
   const never = (raw.neverReuse || []).map(globToRegExp);
   const outputs = Object.entries(raw.outputs || {}).map(([pattern, paths]) => ({ re: globToRegExp(pattern), paths }));
   const uses = Object.entries(raw.uses || {}).map(([pattern, gates]) => ({ re: globToRegExp(pattern), gates }));
+  const inputs = raw.inputs ? Object.entries(raw.inputs).map(([pattern, names]) => ({ re: globToRegExp(pattern), names })) : null;
   return {
     file,
     // The gates whose build a gate tests (a browser suite starts the built app): their output on
@@ -40,6 +52,8 @@ export function loadRules(file) {
     // testing a missing or older build. Reused only while the output it made is still in place.
     neverReuse: (gate) => never.some((re) => re.test(gate)),
     outputsFor: (gate) => outputs.find((o) => o.re.test(gate))?.paths || [],
+    // The --inputs (a database schema...) each gate depends on; null when the rules don't say.
+    inputsFor: (gate) => (inputs ? inputs.find((i) => i.re.test(gate))?.names || [] : null),
     ignore: matcher(raw.ignore || []),
     areas: Object.entries(raw.areas || {}).map(([name, globs]) => ({ name, match: matcher(globs) })),
     gates: Object.entries(raw.gates || {}).map(([pattern, areas]) => ({ pattern, re: globToRegExp(pattern), areas })),
@@ -118,7 +132,8 @@ export function checkBuilds({ root, tree, gate, rules, keys }) {
       problems.push(`the ${builder} output is missing (${missing.join(', ')})`);
       continue;
     }
-    const passes = proofOn(tree, builder, { keys }) || [];
+    // A build is judged by its output on disk, not by what its run read from a database.
+    const passes = proofOn(tree, builder, { keys, inputs: null }) || [];
     const made = passes.find((r) => r.ext.outputs && outs.every((o) => r.ext.outputs[o] === now[o]));
     if (made) checked[builder] = { receipt: path.basename(made.file), outputs: now };
     else problems.push(passes.length ? `the ${builder} output on disk was not made by its passing run on this code` : `no passing ${builder} run on this code`);

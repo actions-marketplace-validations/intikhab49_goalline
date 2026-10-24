@@ -24,6 +24,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --quiet pytest
+      - name: a PostgreSQL for the db=pg test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres createuser --superuser "$USER"
+          createdb goalline
+          echo "GOALLINE_TEST_PG=postgresql:///goalline" >> "$GITHUB_ENV"
       - run: node --test test/*.test.mjs
         shell: bash
 

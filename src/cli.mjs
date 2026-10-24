@@ -27,10 +27,16 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
                             gate. A trial unless trusted: the gate still runs, and whether skipping would
                             have been right is recorded (goalline trial-report)
       --trust-rules         with --rules: really skip, writing a CARRIED receipt for this code
+      --input name=<probe>  something the gate depends on that the code doesn't hold, read right
+                            before and after the run and kept on the receipt as a hash. db=pg is
+                            the schema pg_dump reports for $DATABASE_URL (pg:VAR for another
+                            variable); any other probe is a command whose output says what
+                            matters. Repeatable. In --rules, "inputs" names the gates that need each
 
-  goalline verify [--require a,b,browser:2] [--idle browser] [--json]
+  goalline verify [--require a,b,browser:2] [--idle browser] [--input db=pg] [--json]
       Show which gates have valid receipts for the code in this checkout, without re-running them.
-      Exits 1 if a --require'd gate is not proven.
+      Exits 1 if a --require'd gate is not proven. A receipt made with --input counts only while
+      the same probe still reads the same.
 
   goalline goalpost [--base origin/main] [--head HEAD] [--cwd apps/web] -- npx jest {files}
       Run the OLD versions of the test files this change edited or deleted against the NEW code.
@@ -104,7 +110,7 @@ export async function main(argv) {
     return 0;
   }
   try {
-    const { opts, positional, command } = parseArgs(rest, { booleans: BOOLEANS, repeat: ['count'] });
+    const { opts, positional, command } = parseArgs(rest, { booleans: BOOLEANS, repeat: ['count', 'input'] });
     switch (cmd) {
       case 'run':
         return await cmdRun(opts, command);

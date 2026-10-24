@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { inputProblems, libpqUrl, normalizePgDump, parseInputs, redact } from '../src/inputs.mjs';
 import { failedTestNames, parseSummary, readJestJson, readJunitXml, testSignals, testTitles } from '../src/parse.mjs';
 import { jsCrashSite, pyCrashSite, pySummary } from '../src/runners.mjs';
 import { safeRemoveTree, scratchRoot } from '../src/scratch.mjs';
@@ -116,6 +117,144 @@ test('a same-size edit in the second git last wrote its index still changes the 
   const v = cli(dir, 'verify', '--require', 'unit');
   assert.equal(v.code, 1, v.all);
   assert.match(v.out, /unit\s+MISSING/);
+});
+
+// A probe that prints a file (a stand-in for a database's schema), and a gate that rewrites it.
+const READ_PROBE = path.join(TMP, 'goalline-read-probe.mjs');
+fs.writeFileSync(READ_PROBE, "import fs from 'node:fs';\nprocess.stdout.write(fs.readFileSync(process.argv[2]));\n");
+const BUMP = path.join(TMP, 'goalline-bump.mjs');
+fs.writeFileSync(BUMP, "import fs from 'node:fs';\nfs.writeFileSync(process.argv[2], 'migrated during the run\\n');\n");
+// The URL is never read: it is there to show a password does not reach the receipt.
+const probeOf = (file) => `db=node "${READ_PROBE}" "${file}" postgresql://app:s3cret@db.invalid/app`;
+const schemaFile = (text) => {
+  const file = path.join(fs.mkdtempSync(path.join(TMP, 'receipts-db-')), 'schema.sql');
+  fs.writeFileSync(file, text);
+  return file;
+};
+
+test('--input: a receipt counts only while the same probe reads the same, and never when it changed during the run', () => {
+  const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
+  const dir = repo();
+  const schema = schemaFile('create table users (id int);\r\n');
+  const input = probeOf(schema);
+  const gate = (...extra) => cliIn(home, dir, 'run', '--gate', 'api', '--no-machine', '--input', input, ...extra, '--', 'node', FAKE, 'test/add.test.mjs');
+  let r = gate();
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.err, /api PASSED · .* · db [0-9a-f]{7}/);
+  const stored = JSON.stringify(receiptFiles(home).map(statementOf));
+  assert.match(stored, /postgresql:\/\/app:\*\*\*@db\.invalid/);
+  assert.doesNotMatch(stored, /s3cret/);
+
+  const verify = (...extra) => cliIn(home, dir, 'verify', '--require', 'api', ...extra);
+  let v = verify();
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /it depends on input db: check it with --input db=node /);
+  v = verify('--input', input);
+  assert.equal(v.code, 0, v.all);
+  assert.match(v.out, /api\s+VERIFIED/);
+  assert.match(v.out, /· db [0-9a-f]{7}\n/);
+  // Line endings aside, it is the same schema (read on another OS, say).
+  fs.writeFileSync(schema, 'create table users (id int);\n');
+  assert.equal(verify('--input', input).code, 0);
+  v = verify('--input', `db=node "${READ_PROBE}" "${schema}"`);
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /input db was read with node .*, not node /);
+
+  fs.writeFileSync(schema, 'create table users (id bigint);\n');
+  v = verify('--input', input);
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /db has changed since \([0-9a-f]{7} then, [0-9a-f]{7} now\)/);
+  r = gate('--reuse');
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.err, /api: runs: the earlier pass on this code does not count \(db has changed since/);
+  assert.doesNotMatch(r.err, /REUSED/);
+  assert.match(gate('--reuse').err, /api REUSED/);
+
+  r = cliIn(home, dir, 'run', '--gate', 'migrations', '--no-machine', '--input', input, '--', `node "${BUMP}" "${schema}"`);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.err, /INPUT CHANGED DURING THE RUN \(db\), so this receipt will not verify/);
+  v = cliIn(home, dir, 'verify', '--require', 'migrations', '--input', input);
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /db changed during the run/);
+});
+
+test('rules say which gates an input applies to; one they name that no --input reads, or a probe that fails, proves nothing', () => {
+  const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
+  const dir = repo();
+  const input = probeOf(schemaFile('create table users (id int);\n'));
+  const rules = path.join(fs.mkdtempSync(path.join(TMP, 'receipts-rules-')), 'rules.json');
+  fs.writeFileSync(rules, JSON.stringify({ inputs: { 'api-*': ['db'] } }));
+  const run = (gate, ...extra) => cliIn(home, dir, 'run', '--gate', gate, '--no-machine', '--rules', rules, ...extra, '--', 'node', FAKE, 'test/add.test.mjs');
+  const verify = (gate, ...extra) => cliIn(home, dir, 'verify', '--require', gate, ...extra);
+
+  // unit does not depend on the database, so its receipt never needs the probe.
+  assert.equal(run('unit', '--input', input).code, 0);
+  assert.equal(verify('unit').code, 0);
+
+  let r = run('api-users');
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.err, /api-users: input db could not be read \(no --input reads it\); this run will not count as proof/);
+  let v = verify('api-users', '--input', input);
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /input db could not be read for that run \(no --input reads it\)/);
+  assert.equal(run('api-users', '--input', input).code, 0);
+  assert.equal(verify('api-users', '--input', input).code, 0);
+
+  const missing = path.join(TMP, 'goalline-no-such-schema.sql');
+  r = run('api-orders', '--input', probeOf(missing));
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.err, /input db could not be read \(the probe exited 1: /);
+  v = verify('api-orders', '--input', probeOf(missing));
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /input db could not be read for that run \(the probe exited 1/);
+});
+
+test('db=pg reads the schema without the lines pg_dump changes on every dump; Prisma URLs and passwords are handled', () => {
+  const dump = (key, server, client, type) =>
+    ['--', '-- PostgreSQL database dump', '--', '', `\\restrict ${key}`, '', `-- Dumped from database version ${server}`, `-- Dumped by pg_dump version ${client}`, '',
+      'SET statement_timeout = 0;', '', `CREATE TABLE public.users (\n    id ${type} NOT NULL\n);`, '', '--', '-- PostgreSQL database dump complete', '--', '', `\\unrestrict ${key}`, ''].join('\n');
+  const a = normalizePgDump(dump('aB3xQ', '16.4 (Ubuntu 16.4-1.pgdg24.04+1)', '16.4', 'integer'));
+  const b = normalizePgDump(dump('Zq9Lm', '16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)', '17.6', 'integer'));
+  assert.equal(a.text, b.text);
+  assert.equal(b.server, '16.10');
+  assert.match(a.text, /^server 16\n/);
+  assert.doesNotMatch(a.text, /restrict|Dumped/);
+  assert.notEqual(normalizePgDump(dump('aB3xQ', '16.4', '16.4', 'bigint')).text, a.text);
+  assert.notEqual(normalizePgDump(dump('aB3xQ', '17.0', '17.6', 'integer')).text, a.text);
+  assert.match(normalizePgDump(dump('k', '9.6.24', '16.4', 'integer')).text, /^server 9\.6\n/);
+
+  assert.equal(libpqUrl('postgresql://u:p@h:5432/app?schema=public&sslmode=require&connection_limit=5'), 'postgresql://u:p@h:5432/app?sslmode=require');
+  assert.equal(libpqUrl('postgres://h/app?schema=public'), 'postgres://h/app');
+  assert.equal(libpqUrl('host=h dbname=app'), 'host=h dbname=app');
+  assert.equal(redact('pg_dump postgresql://u:s3cr3t@h/app --schema-only'), 'pg_dump postgresql://u:***@h/app --schema-only');
+  assert.equal(redact('mysqldump mysql://root@h/x'), 'mysqldump mysql://root@h/x');
+  assert.deepEqual(parseInputs(['db=pg', 'flags=echo a=b']), { db: 'pg', flags: 'echo a=b' });
+  assert.throws(() => parseInputs(['db']), /--input needs name=<probe>/);
+  assert.throws(() => parseInputs(['db=pg', 'db=pg:TEST_DB_URL']), /--input db is given twice/);
+  assert.deepEqual(inputProblems({ db: { probe: 'pg', sha256: 'a'.repeat(64), atEnd: 'a'.repeat(64) } }, { db: { probe: 'pg', sha256: 'a'.repeat(64) } }), []);
+});
+
+test('db=pg on a live PostgreSQL: the same schema verifies, a migration does not', { skip: !process.env.GOALLINE_TEST_PG && 'set GOALLINE_TEST_PG to a database URL' }, () => {
+  const url = process.env.GOALLINE_TEST_PG;
+  const psql = (sql) => execFileSync('psql', [url, '-v', 'ON_ERROR_STOP=1', '-qc', sql]);
+  psql('DROP TABLE IF EXISTS goalline_probe; CREATE TABLE goalline_probe (id int);');
+  try {
+    const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
+    const dir = repo();
+    const r = cliIn(home, dir, 'run', '--gate', 'api', '--no-machine', '--input', 'db=pg:GOALLINE_TEST_PG', '--', 'node', FAKE, 'test/add.test.mjs');
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.err, /· db [0-9a-f]{7}/);
+    assert.match(statementOf(receiptFiles(home)[0]).predicate.configuration[0].annotations.inputs.db.server, /^\d+(\.\d+)*$/);
+    // A second pg_dump writes a new random \restrict key: still the same schema.
+    let v = cliIn(home, dir, 'verify', '--require', 'api', '--input', 'db=pg:GOALLINE_TEST_PG');
+    assert.equal(v.code, 0, v.all);
+    psql('ALTER TABLE goalline_probe ADD COLUMN name text;');
+    v = cliIn(home, dir, 'verify', '--require', 'api', '--input', 'db=pg:GOALLINE_TEST_PG');
+    assert.equal(v.code, 1, v.all);
+    assert.match(v.out, /db has changed since/);
+  } finally {
+    psql('DROP TABLE IF EXISTS goalline_probe;');
+  }
 });
 
 test("another test runner during the gate makes the run not idle; the gate's own processes and the tool's starters never count", async () => {

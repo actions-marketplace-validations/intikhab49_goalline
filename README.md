@@ -6,6 +6,7 @@
 
 **Your coding agent made the tests pass. Did it fix the code, or the tests? goalline replays the old tests on the new code and shows every expectation that moved, with its exact old and new values. It also keeps a signed receipt for every check, so nothing that already passed on this exact code has to run again.**
 
+[![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-goalline-2a78d6?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/marketplace/actions/goalline-catch-ai-edited-tests)
 [![License](https://img.shields.io/badge/license-MIT-2a78d6?style=for-the-badge)](LICENSE)
 [![Node](https://img.shields.io/badge/node-20%2B-2a78d6?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-1baf7a?style=for-the-badge)](package.json)
@@ -44,7 +45,7 @@ goalline help
 
 ## GitHub Action
 
-Run goalpost on every pull request. Its card (what needs a look, with the old and new values) goes on the job's summary page.
+Run goalpost on every pull request ([on the GitHub Marketplace](https://github.com/marketplace/actions/goalline-catch-ai-edited-tests)). Its card (what needs a look, with the old and new values) goes on the job's summary page.
 
 ```yaml
 name: goalline
@@ -251,6 +252,17 @@ A gate that tests other gates’ builds (a browser suite starts the built app) n
 
 In the trial, the gate always runs, and the log records whether carrying the earlier pass would have been right. `verify` ends with what to run, and only that (`Run only: browser (one passing run on an idle machine)`), or `Nothing to re-run`. `trial-report` says when the rules can be trusted: no disagreement in at least 20 would-be skips. Trusted, a carried pass writes a `CARRIED` receipt for the new code, and `verify` shows `CARRIED`, never `VERIFIED`. Only real runs are carried, never a carried receipt.
 
+### What the code doesn't hold
+
+A test run can pass because of the database it hit, not the code: a dev database that drifted, a migration that half-applied, another server version. Name it with `--input`, and goalline reads it right before and right after the gate and keeps a hash of it on the receipt:
+
+```sh
+goalline run --gate api --reuse --input db=pg -- npx jest apps/api
+goalline verify --require unit,api --input db=pg
+```
+
+`db=pg` is the schema PostgreSQL reports for `$DATABASE_URL` (`pg_dump --schema-only`, without owners, grants and the lines that change on every dump) and the server's major version; `db=pg:TEST_DATABASE_URL` reads another variable. Any other probe is a command whose output says what matters, such as `--input db="sqlite3 dev.db .schema"` or `--input db="mysqldump --no-data --skip-dump-date app"`. In `verify` and `--reuse`, a receipt with inputs counts only while the same probe reads the same thing, and never when an input changed during the run. A password in a probe's URL never reaches the receipt. In `rules.json`, `"inputs": { "api-*": ["db"] }` says which gates depend on what, so a schema change doesn't re-run the unit tests.
+
 ## What a receipt is
 
 An [in-toto](https://in-toto.io) statement of type [`test-result/v0.1`](https://github.com/in-toto/attestation/blob/main/spec/predicates/test-result.md) about one git tree, in a DSSE envelope signed with this machine's Ed25519 key (`~/.receipts/keys`). It records:
@@ -281,7 +293,7 @@ A receipt only counts in `verify` if all of these hold:
 - **Scratch copies go in the temp folder** (`GOALLINE_SCRATCH` to move them). Never put them under a folder whose name starts with a dot: Jest configs whose `testMatch` starts with `<rootDir>` find no tests there.
 - **Scratch copies link your checkout's `node_modules` instead of installing.** When the lockfile or setup files differ between base and head, the report says so, and a red can then be a setup error rather than a behaviour change.
 - **Python packages come from the environment the command runs in**, not from the head's requirements or lockfile. `history --deps-root` installs npm lockfiles only.
-- **The database schema, env vars and the clock aren't part of the fingerprint yet.** A receipt says nothing about a different database. That's the next step: recording what each test actually reads.
+- **The database counts only when you name it** (`--input db=pg`), and per gate, not per test. Env vars named in `--env-keys` are recorded but not checked, and the clock isn't part of the fingerprint yet.
 - **`goalpost` catches edited tests, not hard-coded answers.** Hard-coded answers still need hidden tests or mutation testing.
 
 ## The old name

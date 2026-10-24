@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { repoName, repoRoot, workingTree } from './git.mjs';
+import { describeInputs, inputProblems, parseInputs, readInputs } from './inputs.mjs';
 import { describeCounts, describeMachine } from './run.mjs';
 import { openEnvelope, trustedKeys } from './sign.mjs';
 import { extOf, listReceipts } from './store.mjs';
@@ -9,7 +10,9 @@ const major = (v) => String(v || '').split('.')[0];
 const PROVEN = new Set(['VERIFIED', 'CHECKED', 'CARRIED']);
 
 // Why a receipt can or can't stand in for running the gate again on this code. Without
-// cur.tree, everything but the code is judged (used to carry a pass to other code).
+// cur.tree, everything but the code is judged (used to carry a pass to other code). cur.inputs
+// are fresh readings of the inputs outside the code (none given: none can be checked); null
+// leaves them out.
 export function judge(entry, cur, keys) {
   let envelope;
   try {
@@ -29,6 +32,7 @@ export function judge(entry, cur, keys) {
       problems.push(`ran on Node ${ext.toolchain?.node}, this is Node ${process.versions.node}`);
     }
   }
+  if (cur.inputs !== null) problems.push(...inputProblems(ext.inputs, cur.inputs || {}));
   const result = st.predicate?.result;
   if (result === 'FAILED') problems.push(ext.kind === 'run' ? `failed (exit ${ext.exitCode})` : 'failed');
   const warned = result === 'WARNED';
@@ -73,7 +77,7 @@ function latestText(r) {
 
 export function cmdVerify(opts) {
   const root = repoRoot(opts.repo || process.cwd());
-  const cur = workingTree(root);
+  const cur = { ...workingTree(root), inputs: readInputs(parseInputs(opts.input)) };
   const keys = trustedKeys();
   const judged = listReceipts(cur.tree).map((e) => judge(e, cur, keys));
   const required = parseRequire(opts.require);
@@ -122,11 +126,12 @@ export function cmdVerify(opts) {
   const code = strict && !ok ? 1 : 0;
 
   if (opts.json) {
-    console.log(JSON.stringify({ repo: repoName(root), tree: cur.tree, head: cur.head, clean: cur.clean, ok, gates: rows }, null, 2));
+    console.log(JSON.stringify({ repo: repoName(root), tree: cur.tree, head: cur.head, clean: cur.clean, inputs: cur.inputs, ok, gates: rows }, null, 2));
     return code;
   }
   const where = cur.clean ? `= commit ${short(cur.head)}` : `(uncommitted work on top of ${short(cur.head)})`;
-  const out = [`goalline verify · ${repoName(root)} · tree ${short(cur.tree)} ${where}`, ''];
+  const read = describeInputs(cur.inputs);
+  const out = [`goalline verify · ${repoName(root)} · tree ${short(cur.tree)} ${where}${read ? ` · ${read}` : ''}`, ''];
   if (!rows.length) out.push('  No receipts for this exact code yet.');
   else {
     const w = Math.max(4, ...rows.map((r) => r.gate.length));
