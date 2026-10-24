@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="2" failures="8" skipped="2" tests="14" timestamp="2026-01-01T00:00:00" hostname="host"><testcase classname="" name="tests.test_gone" file="tests/test_gone.py"><error message="collection failure">ImportError while importing test module 'C:\work\pkg\tests\test_gone.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Python37\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_gone.py:1: in &lt;module&gt;
+    from calc import removed_thing
+E   ImportError: cannot import name 'removed_thing' from 'calc' (C:\work\pkg\src\calc\__init__.py)</error></testcase><testcase classname="tests.test_calc" name="test_add" file="tests\test_calc.py" line="4"><failure message="assert 5 == 4&#10; +  where 5 = add(2, 2)">def test_add():
+&gt;       assert add(2, 2) == 4
+E       assert 5 == 4
+E        +  where 5 = add(2, 2)
+
+tests\test_calc.py:6: AssertionError</failure></testcase><testcase classname="tests.test_calc" name="test_total_crash_in_code" file="tests\test_calc.py" line="7"><failure message="KeyError: 'qty'">def test_total_crash_in_code():
+&gt;       assert total([{"price": 2}]) == 2
+               ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_calc.py:9: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\calc\__init__.py:5: in total
+    return sum(i["price"] * i["qty"] for i in items)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = &lt;list_iterator object at 0x0000000000000000&gt;
+
+&gt;   return sum(i["price"] * i["qty"] for i in items)
+                            ^^^^^^^^
+E   KeyError: 'qty'
+
+src\calc\__init__.py:5: KeyError</failure></testcase><testcase classname="tests.test_calc" name="test_crash_in_test" file="tests\test_calc.py" line="10"><failure message="AttributeError: 'Cart' object has no attribute 'items'">def test_crash_in_test():
+        c = Cart("x")
+&gt;       assert c.items == []
+               ^^^^^^^
+E       AttributeError: 'Cart' object has no attribute 'items'
+
+tests\test_calc.py:13: AttributeError</failure></testcase><testcase classname="tests.test_calc" name="test_param[1-1-2]" file="tests\test_calc.py" line="14"><failure message="assert 3 == 2&#10; +  where 3 = add(1, 1)">a = 1, b = 1, want = 2
+
+    @pytest.mark.parametrize("a,b,want", [(1, 1, 2), (2, 3, 6)])
+    def test_param(a, b, want):
+&gt;       assert add(a, b) == want
+E       assert 3 == 2
+E        +  where 3 = add(1, 1)
+
+tests\test_calc.py:17: AssertionError</failure></testcase><testcase classname="tests.test_calc" name="test_param[2-3-6]" file="tests\test_calc.py" line="14" /><testcase classname="tests.test_calc.TestGroup" name="test_method" file="tests\test_calc.py" line="19" /><testcase classname="tests.test_calc.TestGroup" name="test_dict" file="tests\test_calc.py" line="22"><failure message="AssertionError: assert {'a': 1, 'b': 2} == {'a': 1, 'b': 3}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Differing items:&#10;  #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mb#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: #x1B[94m2#x1B[39;49;00m}#x1B[90m#x1B[39;49;00m != #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mb#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: #x1B[94m3#x1B[39;49;00m}#x1B[90m#x1B[39;49;00m&#10;  Use -v to get more diff">self = &lt;test_calc.TestGroup object at 0x0000000000000000&gt;
+
+    def test_dict(self):
+&gt;       assert {"a": 1, "b": 2} == {"a": 1, "b": 3}
+E       AssertionError: assert {'a': 1, 'b': 2} == {'a': 1, 'b': 3}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mb#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: #x1B[94m2#x1B[39;49;00m}#x1B[90m#x1B[39;49;00m != #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mb#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: #x1B[94m3#x1B[39;49;00m}#x1B[90m#x1B[39;49;00m
+E         Use -v to get more diff
+
+tests\test_calc.py:24: AssertionError</failure></testcase><testcase classname="tests.test_calc" name="test_fixture_error" file="tests\test_calc.py" line="29"><error message="failed on setup with &quot;TypeError: Cart.__init__() missing 1 required positional argument: 'owner'&quot;">@pytest.fixture
+    def cart():
+&gt;       return Cart()
+               ^^^^^^
+E       TypeError: Cart.__init__() missing 1 required positional argument: 'owner'
+
+tests\test_calc.py:28: TypeError</error></testcase><testcase classname="tests.test_calc" name="test_skipped" file="tests\test_calc.py" line="32"><skipped type="pytest.skip" message="later">C:\work\pkg\tests\test_calc.py:33: later</skipped></testcase><testcase classname="tests.test_calc" name="test_xfail" file="tests\test_calc.py" line="36"><skipped type="pytest.xfail" message="" /></testcase><testcase classname="tests.test_calc" name="test_raises" file="tests\test_calc.py" line="40"><failure message="Failed: DID NOT RAISE ValueError">def test_raises():
+&gt;       with pytest.raises(ValueError):
+E       Failed: DID NOT RAISE ValueError
+
+tests\test_calc.py:42: Failed</failure></testcase><testcase classname="tests.test_calc" name="test_lib_crash_in_test" file="tests\test_calc.py" line="44"><failure message="TypeError: the JSON object must be str, bytes or bytearray, not NoneType">def test_lib_crash_in_test():
+&gt;       assert json.loads(None) == {}
+               ^^^^^^^^^^^^^^^^
+
+tests\test_calc.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+s = None, cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+&gt;               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not NoneType
+
+C:\Python37\Lib\json\__init__.py:339: TypeError</failure></testcase><testcase classname="tests.test_calc" name="test_lib_crash_in_code" file="tests\test_calc.py" line="47"><failure message="TypeError: the JSON object must be str, bytes or bytearray, not NoneType">def test_lib_crash_in_code():
+&gt;       assert parse(None) == {}
+               ^^^^^^^^^^^
+
+tests\test_calc.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\calc\__init__.py:14: in parse
+    return json.loads(text)
+           ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+s = None, cls = None, object_hook = None, parse_float = None, parse_int = None
+parse_constant = None, object_pairs_hook = None, kw = {}
+
+    def loads(s, *, cls=None, object_hook=None, parse_float=None,
+            parse_int=None, parse_constant=None, object_pairs_hook=None, **kw):
+        """Deserialize ``s`` (a ``str``, ``bytes`` or ``bytearray`` instance
+        containing a JSON document) to a Python object.
+    
+        ``object_hook`` is an optional function that will be called with the
+        result of any object literal decode (a ``dict``). The return value of
+        ``object_hook`` will be used instead of the ``dict``. This feature
+        can be used to implement custom decoders (e.g. JSON-RPC class hinting).
+    
+        ``object_pairs_hook`` is an optional function that will be called with the
+        result of any object literal decoded with an ordered list of pairs.  The
+        return value of ``object_pairs_hook`` will be used instead of the ``dict``.
+        This feature can be used to implement custom decoders.  If ``object_hook``
+        is also defined, the ``object_pairs_hook`` takes priority.
+    
+        ``parse_float``, if specified, will be called with the string
+        of every JSON float to be decoded. By default this is equivalent to
+        float(num_str). This can be used to use another datatype or parser
+        for JSON floats (e.g. decimal.Decimal).
+    
+        ``parse_int``, if specified, will be called with the string
+        of every JSON int to be decoded. By default this is equivalent to
+        int(num_str). This can be used to use another datatype or parser
+        for JSON integers (e.g. float).
+    
+        ``parse_constant``, if specified, will be called with one of the
+        following strings: -Infinity, Infinity, NaN.
+        This can be used to raise an exception if invalid JSON numbers
+        are encountered.
+    
+        To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
+        kwarg; otherwise ``JSONDecoder`` is used.
+        """
+        if isinstance(s, str):
+            if s.startswith('\ufeff'):
+                raise JSONDecodeError("Unexpected UTF-8 BOM (decode using utf-8-sig)",
+                                      s, 0)
+        else:
+            if not isinstance(s, (bytes, bytearray)):
+&gt;               raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                                f'not {s.__class__.__name__}')
+E               TypeError: the JSON object must be str, bytes or bytearray, not NoneType
+
+C:\Python37\Lib\json\__init__.py:339: TypeError</failure></testcase></testsuite></testsuites>

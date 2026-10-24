@@ -1,0 +1,46 @@
+{
+  "name": "goalline",
+  "version": "0.10.0",
+  "description": "Goal-line technology for your tests: signed receipts for every check, and the old tests replayed on new code to catch a test that was edited to pass.",
+  "type": "module",
+  "bin": {
+    "goalline": "bin/goalline.mjs",
+    "receipts": "bin/receipts.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "testing",
+    "ci",
+    "coding-agents",
+    "claude-code",
+    "code-review",
+    "jest",
+    "vitest",
+    "pytest",
+    "regression",
+    "test-integrity",
+    "in-toto",
+    "attestation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/intikhab49/goalline.git"
+  },
+  "homepage": "https://github.com/intikhab49/goalline#readme",
+  "bugs": {
+    "url": "https://github.com/intikhab49/goalline/issues"
+  },
+  "author": "Intikhab Azam",
+  "license": "MIT"
+}
