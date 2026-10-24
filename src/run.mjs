@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { changedPaths, repoName, repoRoot, workdirTree, workingTree } from './git.mjs';
+import { clockRecord, describeClock, parseTtl, readClock, startClock } from './clock.mjs';
 import { describeInputs, gateProbes, parseInputs, readInputs } from './inputs.mjs';
 import { cpuWindow, foreignRunners, freeMb, startSampler } from './machine.mjs';
 import { countPatterns, failedTestNames, parsePatterns, parseSummary } from './parse.mjs';
@@ -42,6 +43,7 @@ export async function cmdRun(opts, command) {
   const patterns = parsePatterns(opts.count);
   const line = commandLine(command);
   const given = parseInputs(opts.input);
+  const ttlMs = parseTtl(opts.clockTtl);
   const watch = !opts.noMachine;
   // The CPU load is measured across the fingerprinting below (git's own work included), so it
   // costs no extra wait unless that took under half a second.
@@ -101,17 +103,27 @@ export async function cmdRun(opts, command) {
   const freeMbStart = freeMb();
   const cpuBusyStartPct = cpu ? await cpu.stop(500) : null;
   const sampler = watch ? startSampler({ everyMs: Number(opts.sampleEvery ?? 30) * 1000 }) : null;
+  // Each Node process of the gate watches whether the project's own code reads the real clock.
+  let clock = null;
+  if (!opts.noClock) {
+    try {
+      clock = startClock(root);
+    } catch (err) {
+      console.error(`goalline: ${opts.gate}: the clock watch could not start (${err.message})`);
+    }
+  }
 
   const startedAt = new Date();
   // Other test runners are looked for while the gate starts. Its own processes are children of
   // this one, so they never count.
   const foreignCheck = watch ? foreignRunners() : null;
-  const { code: exitCode, output, truncated } = await spawnCapture(line, { shell: opts.shell || true });
+  const { code: exitCode, output, truncated } = await spawnCapture(line, { shell: opts.shell || true, env: clock?.env });
   const finishedAt = new Date();
+  const clockSeen = readClock(clock);
   const foreignAtStart = foreignCheck ? await foreignCheck : null;
   const samples = await sampler?.stop();
   try {
-    const { result, inconclusive } = saveRun({ opts, root, key, before, rules, builds, line, patterns, exitCode, output, truncated, startedAt, finishedAt, samples, watch, idleMb, freeMbStart, cpuBusyStartPct, foreignAtStart });
+    const { result, inconclusive } = saveRun({ opts, root, key, before, rules, builds, line, patterns, exitCode, output, truncated, startedAt, finishedAt, samples, watch, idleMb, freeMbStart, cpuBusyStartPct, foreignAtStart, clockSeen, ttlMs });
     if (trial) recordTrial({ opts, root, before, trial, result, inconclusive, ms: finishedAt - startedAt });
   } catch (err) {
     console.error(`goalline: ${opts.gate}: the gate ran (exit ${exitCode}) but its receipt could not be saved (${err.message})`);
@@ -188,6 +200,8 @@ function tryReuse({ opts, root, key, before, rules }) {
       clean: before.clean,
       // The inputs the carried pass was checked against, so a later verify checks them too.
       ...(Object.keys(before.inputs).length ? { inputs: before.inputs } : {}),
+      // A pass that read the real clock expires when it would have: carrying it gives no more time.
+      ...(e.clock ? { clock: e.clock } : {}),
     };
     const statement = buildStatement({ name: repoName(root), tree: before.tree, head: before.head, clean: before.clean, result: 'PASSED', ext });
     writeReceipt(allocReceipt(before.tree, gate), signStatement(statement, key), null);
@@ -214,7 +228,7 @@ function recordTrial({ opts, root, before, trial, result, inconclusive, ms }) {
   );
 }
 
-function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitCode, output, truncated, startedAt, finishedAt, samples, watch, idleMb, freeMbStart, cpuBusyStartPct, foreignAtStart }) {
+function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitCode, output, truncated, startedAt, finishedAt, samples, watch, idleMb, freeMbStart, cpuBusyStartPct, foreignAtStart, clockSeen, ttlMs }) {
   const after = { tree: workdirTree(root, before.realIndex) };
   // Each input is read again: one that changed while the gate ran was not the one it started on.
   const inputs = Object.fromEntries(
@@ -237,6 +251,7 @@ function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitC
   const buildProblems = builds ? recheckBuilds(root, builds, rules) : [];
   for (const p of buildProblems) warnings.push(`build: ${p}`);
   const result = exitCode !== 0 || summary.failed > 0 ? 'FAILED' : warnings.length ? 'WARNED' : 'PASSED';
+  const clock = clockRecord(clockSeen, { off: opts.noClock, runner: summary.runner, startedAt, ttlMs });
   const treeStable = before.tree === after.tree;
   const machine = watch
     ? {
@@ -276,6 +291,7 @@ function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitC
     changedDuringRun: treeStable ? [] : changedPaths(root, before.tree, after.tree).slice(0, 20),
     lockDigest: lockDigest(root),
     ...(Object.keys(inputs).length ? { inputs } : {}),
+    clock,
     logSha256: sha256(output),
     logTruncated: truncated,
     // Which passing build run made each build this gate tested, and any build problem.
@@ -303,6 +319,8 @@ function saveRun({ opts, root, key, before, rules, builds, line, patterns, exitC
     `tree ${short(before.tree)}${before.clean ? ` = commit ${short(before.head)}` : ' (uncommitted work)'}`,
   ];
   if (Object.keys(inputs).length) notes.push(describeInputs(inputs));
+  const clockNote = describeClock(clock);
+  if (clockNote) notes.push(clockNote);
   if (warnings.length) notes.push(`warnings: ${warnings.join(', ')}`);
   if (inputsMoved.length) notes.push(`INPUT CHANGED DURING THE RUN (${inputsMoved.join(', ')}), so this receipt will not verify`);
   if (!treeStable) notes.push(`CODE CHANGED DURING THE RUN (${ext.changedDuringRun.slice(0, 3).join(', ')}), so this receipt will not verify`);

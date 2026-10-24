@@ -302,6 +302,15 @@ GUIDES = [
              "the schema PostgreSQL reports right before and right after the gate and keeps its hash on the "
              "receipt, so a pass on one schema never stands in for another.",
      "blurb": "the database schema on the receipt, with --input db=pg"},
+    {"path": "tests-that-read-the-clock/", "crumb": "The clock",
+     "title": "Find tests that read the real clock, and expire their cache",
+     "h1": "Find the tests that read the real clock",
+     "desc": "goalline counts the real-clock reads your own tests and code make under Jest, Vitest or node --test, "
+             "and a pass that read the clock counts until midnight.",
+     "lead": "A test that reads the real clock can pass today and fail tomorrow on the same code. During "
+             "`goalline run`, goalline counts every `Date.now()`, `new Date()` and `Date()` your own tests and source "
+             "files make, and a pass that read the clock counts only until the next midnight.",
+     "blurb": "which tests read the real clock, and passes that expire"},
     {"path": "benchmark/", "crumb": "Benchmark",
      "title": "Replaying 200 merged pull requests of pallets/click",
      "h1": "Replaying 200 merged pull requests of pallets/click",
@@ -349,6 +358,9 @@ HOOK_JSON = """{
   }
 }"""
 
+CLOCK_RUN = """goalline run --gate unit -- npx vitest run
+goalline: unit PASSED · 4/4 passed · 2s · tree 47f3402 = commit fea9c46 · reads the real clock (2 read(s), e.g. src/today.mjs:1): counts until 10-25 00:00"""
+
 FRESH_DB = """goalline prove-red --base origin/main --cwd apps/api \\
   --fresh-db 'DATABASE_URL=postgresql://app@localhost:5432/{db}' \\
   --setup 'createdb {db} && npx prisma migrate deploy' --teardown 'dropdb {db}' \\
@@ -392,7 +404,13 @@ FAQ = [
      "adds against the base code and flags any that already pass."),
     ("Can CI skip tests that already passed on the same code?",
      "Yes. `goalline run --reuse` keeps a signed receipt for every run, keyed by the git tree, and skips a gate "
-     "that exact code already passed. With `--input db=pg`, a change to the database schema means it runs again."),
+     "that exact code already passed. With `--input db=pg`, a change to the database schema means it runs again, "
+     "and a pass that read the real clock counts only until midnight."),
+    ("Does goalline handle tests that depend on the current date?",
+     "In Node, yes. During `goalline run`, it counts the reads of the real clock (`Date.now()`, `new Date()`) that "
+     "your own tests and code make under Jest, Vitest or `node --test`, and fake timers don't count. A pass that "
+     "read the clock counts only until the next midnight (or `--clock-ttl`), so a cached pass never stands in for "
+     "another day."),
     ("Does goalline catch hard-coded answers?",
      "No. It catches tests that were edited, not code that special-cases the test's inputs. Hard-coded answers "
      "still need hidden tests or mutation testing."),
@@ -430,7 +448,8 @@ code has to run again.</p>
     ["**Prove**", "`run` · `verify`", "A signed receipt every time a check runs, tied to the exact code it ran on "
      "(the git tree). `verify` says which gates already passed on this code without re-running anything."],
     ["**Skip**", "`run --reuse` · `--rules` · `--input`", "Skip a gate this exact code already passed. Rules carry a "
-     "pass over changes that can't affect the gate, and `--input db=pg` keeps the database schema on the receipt."],
+     "pass over changes that can't affect the gate, `--input db=pg` keeps the database schema on the receipt, and "
+     "a pass that read the real clock counts only until midnight."],
     ["**Catch**", "`goalpost` · `prove-red` · `guard` · `history`", "Old tests on new code, new tests that must "
      "fail on the old code first, a Claude Code Stop hook, and all of it replayed on your merged pull requests."]])}
 {p("Jest, Vitest and pytest are judged test by test; any other command file by file. Zero dependencies.")}
@@ -635,7 +654,8 @@ goalline verify --require api-unit,browser:2 --idle browser''')}
    "duration), the tree and commit, the Node version, the OS and the lockfile digest, whether the machine was idle, "
    "and the full log, gzipped next to it.")}
 {p("A receipt counts only if the signature is valid, the tree matches, the code didn't change during the run, the "
-   "Node major version matches, any `--input` still reads the same, and the result is a clean pass: no failures, "
+   "Node major version matches, any `--input` still reads the same, a pass that read the real clock hasn't "
+   "expired, and the result is a clean pass: no failures, "
    "no flaky tests, and at least one test ran.")}
 <h2>Carrying a pass over changes that can't affect it</h2>
 {p("With `--rules rules.json`, a pass can also carry over changes outside what a gate depends on: the file names "
@@ -681,7 +701,46 @@ goalline run --gate api --input db="mysqldump --no-data --skip-dump-date app" --
 {p("A gate the rules tie to an input that no `--input` reads gets a receipt that proves nothing, and says why.")}
 <h2>Limits</h2>
 {ul(["Per gate, not per test: any schema change re-runs the whole gate.",
-     "The clock is not part of the fingerprint yet."])}
+     "The clock is watched on its own: see [the clock](https://intikhab49.github.io/goalline/tests-that-read-the-clock/)."])}
+"""
+    return article(g, body)
+
+
+def clock_page() -> tuple[str, str]:
+    g = G["tests-that-read-the-clock/"]
+    body = f"""<h2>Why a pass can expire</h2>
+{p("The same code can pass today and fail tomorrow when a test reads the real clock: a token that expires after "
+   "30 days, a report for 'this month', a fixture date that is now in the past. A cache keyed by the code alone "
+   "can't see that, and the clock can't be hashed, because it changes every second. So goalline watches who "
+   "reads it.")}
+<h2>See it</h2>
+{pre(CLOCK_RUN)}
+{p("`goalline verify` shows how long the pass counts. After midnight, `verify` and `--reuse` say why it no "
+   "longer does: `it read the real clock (src/today.mjs:1), so its pass expired at 10-25 00:00`.")}
+<h2>Whose read it is</h2>
+{ul(["Every Node process of the gate loads a small preload (`NODE_OPTIONS=--require`) that watches "
+     "`Date.now()`, `new Date()` with no arguments, and `Date()`.",
+     "A read counts when the first file behind it is yours: a test or source file in the repository, outside "
+     "`node_modules`.",
+     "A date library reads the clock for the code that calls it, so `dayjs()`, `moment()`, luxon's "
+     "`DateTime.now()` and date-fns count as your read.",
+     "A library's own read doesn't count: a test runner timing a test, a logger stamping a line.",
+     "Fake timers (`jest.useFakeTimers()`, `vi.useFakeTimers()`, `mock.timers`) replace `Date`, so their reads "
+     "never reach the watch. A suite that freezes time keeps its receipts as long as the code doesn't change."])}
+<h2>Where it works</h2>
+{p("Jest, including the vm contexts its test environments run in; Vitest, in its forks, threads and vmThreads "
+   "pools; and `node --test`. Checked against Jest 30.5 and Vitest 5.0. The watch adds about 5 to 10 "
+   "microseconds for each clock read it looks at, and Jest itself makes about 80 per test file.")}
+<h2>Options</h2>
+{ul(["`--clock-ttl 12h` sets how long such a pass counts, instead of the next midnight; `--clock-ttl 0` never "
+     "reuses it.",
+     "`--no-clock` turns the watch off for a gate.",
+     "`goalline prune` deletes passes that read the clock and expired: they can never prove anything again."])}
+<h2>Limits</h2>
+{ul(["Node only. pytest runs aren't watched, and Playwright's code under test reads the browser's clock, so "
+     "their receipts don't expire.",
+     "It watches `Date`, not `Intl` formatting with no date, or `performance.timeOrigin`.",
+     "Per gate, not per test: one read anywhere limits the whole gate's pass."])}
 """
     return article(g, body)
 
@@ -745,6 +804,9 @@ def llms(help_text: str) -> tuple[str, str]:
              "- `goalline run --gate <name> --reuse`: signed receipts (in-toto test-result, DSSE, Ed25519) keyed "
              "by the git tree; skips a gate the same code already passed. `--input db=pg` adds the PostgreSQL "
              "schema to the receipt. `goalline verify --require a,b` says which gates are proven.",
+             "- `goalline run` also watches the real clock in Jest, Vitest and node --test runs: a pass whose own "
+             "tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`); fake "
+             "timers don't count.",
              "- Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.",
              f"- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {{files}}`. Marketplace: {MARKET}",
              f"- Benchmark: on pallets/click's last 200 merged PRs, {EDITED} edited a test, {HELD} kept every old "
@@ -786,7 +848,7 @@ def main() -> None:
     help_text = cli_help()
     terminal, card = example()
     pages = [landing(terminal), how_it_works(terminal), hook_page(), action_page(card), prove_red_page(),
-             skip_page(), inputs_page(), benchmark_page(), commands_page(help_text)]
+             skip_page(), inputs_page(), clock_page(), benchmark_page(), commands_page(help_text)]
     assert [p_ for p_, _ in pages[1:]] == [g["path"] for g in GUIDES], "every guide has a page, in order"
     for path, html in pages:
         out = DOCS / path / "index.html"

@@ -32,6 +32,10 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
                             the schema pg_dump reports for $DATABASE_URL (pg:VAR for another
                             variable); any other probe is a command whose output says what
                             matters. Repeatable. In --rules, "inputs" names the gates that need each
+      --clock-ttl <time>    when the project's code reads the real clock (Date.now(), new Date()) in a
+                            Jest, Vitest or node --test run, its receipt counts until the next midnight;
+                            this sets another time instead (12h, 7d, or 0: never). Fake timers don't count
+      --no-clock            don't watch the clock
 
   goalline verify [--require a,b,browser:2] [--idle browser] [--input db=pg] [--json]
       Show which gates have valid receipts for the code in this checkout, without re-running them.
@@ -69,8 +73,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
       --plan counts what would run; --config <file.json> for several areas.
 
   goalline prune [--older-than 30d] [--before <time>] [--tree <sha>] [--gate <name>] [--dry-run]
-      Delete receipts that can never prove anything (unreadable, or the code changed during the
-      run), plus the ones that match every filter given. A failed or flagged run is never deleted
+      Delete receipts that can never prove anything (unreadable, the code changed during the run,
+      or a pass that read the real clock and expired), plus the ones that match every filter given. A failed or flagged run is never deleted
       just because a later run passed: it is the record that the gate was flaky.
 
   goalline trial-report             what reuse saved, and how the rules trial is going
@@ -87,7 +91,7 @@ Tests that need a database (goalpost, prove-red):
   --teardown "<command>"         always run afterwards, e.g. "dropdb {db}"
 goalpost and prove-red exit 2 when they flag something. Receipts live in ~/.receipts (GOALLINE_HOME).`;
 
-const BOOLEANS = ['noMachine', 'json', 'keep', 'noFail', 'quiet', 'dryRun', 'reuse', 'reuseIdle', 'trustRules', 'retryUntyped', 'noRetryUntyped', 'noTransplant', 'hook', 'report', 'plan', 'summary', 'rejudgeTypes', 'fromGit', 'firstHeads'];
+const BOOLEANS = ['noMachine', 'noClock', 'json', 'keep', 'noFail', 'quiet', 'dryRun', 'reuse', 'reuseIdle', 'trustRules', 'retryUntyped', 'noRetryUntyped', 'noTransplant', 'hook', 'report', 'plan', 'summary', 'rejudgeTypes', 'fromGit', 'firstHeads'];
 
 function cmdShow([file]) {
   if (!file) throw new UsageError('show needs a receipt file (.dsse.json)');

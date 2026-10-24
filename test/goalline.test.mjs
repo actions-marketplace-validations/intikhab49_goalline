@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readClock, startClock } from '../src/clock.mjs';
 import { inputProblems, libpqUrl, normalizePgDump, parseInputs, redact } from '../src/inputs.mjs';
 import { failedTestNames, parseSummary, readJestJson, readJunitXml, testSignals, testTitles } from '../src/parse.mjs';
 import { jsCrashSite, pyCrashSite, pySummary } from '../src/runners.mjs';
@@ -255,6 +256,139 @@ test('db=pg on a live PostgreSQL: the same schema verifies, a migration does not
   } finally {
     psql('DROP TABLE IF EXISTS goalline_probe;');
   }
+});
+
+// The project's code reads the clock in src/stamp.mjs, and in a test through a date library. The
+// third test only reads a fake clock and lets a library read the real one for itself.
+const CLOCK_FILES = {
+  'src/stamp.mjs': "export const today = () => new Date().toISOString().slice(0, 10);\n",
+  'test/stamp.test.mjs': "import { today } from '../src/stamp.mjs';\ntest('today is a date', () => { if (today().length !== 10) throw new Error('bad'); });\n",
+  'node_modules/dayjs/package.json': '{ "name": "dayjs", "main": "index.js" }\n',
+  'node_modules/dayjs/index.js': 'module.exports = () => new Date();\n',
+  'test/dayjs.test.mjs': "import dayjs from 'dayjs';\ntest('dayjs reads the clock', () => { if (!(dayjs() instanceof Date)) throw new Error('bad'); });\n",
+  'node_modules/stopwatch/package.json': '{ "name": "stopwatch", "main": "index.js" }\n',
+  'node_modules/stopwatch/index.js': 'module.exports = () => Date.now();\n',
+  'test/frozen.test.mjs': [
+    "import stopwatch from 'stopwatch';",
+    "test('a fake clock, and a library that times itself', () => {",
+    '  const Real = Date;',
+    '  globalThis.Date = class extends Real { constructor(...a) { super(...(a.length ? a : [0])); } static now() { return 0; } };',
+    "  try { if (new Date().getTime() !== 0 || Date.now() !== 0) throw new Error('not frozen'); } finally { globalThis.Date = Real; }",
+    "  if (typeof stopwatch() !== 'number' || new Date(0).getTime() !== 0) throw new Error('bad');",
+    '});',
+    '',
+  ].join('\n'),
+};
+// The newest receipt's clock record: receipt file names start with the time they were made.
+const newest = (home) => receiptFiles(home).sort((a, b) => path.basename(a).localeCompare(path.basename(b))).at(-1);
+const clockOf = (home) => statementOf(newest(home)).predicate.configuration[0].annotations.clock;
+
+test('clock: a pass that read the real clock counts until midnight (or --clock-ttl); fake clocks and libraries timing themselves do not count', () => {
+  const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
+  const rules = path.join(fs.mkdtempSync(path.join(TMP, 'receipts-rules-')), 'rules.json');
+  fs.writeFileSync(rules, JSON.stringify({ ignore: ['**/*.md'], areas: { src: ['src/**'], tests: ['test/**'] }, gates: { '*': ['src', 'tests'] } }));
+  const dir = repo({ ...CLOCK_FILES });
+  const gate = (name, file, ...extra) => cliIn(home, dir, 'run', '--gate', name, '--no-machine', ...extra, '--', 'node', FAKE, file);
+  const verify = (name) => cliIn(home, dir, 'verify', '--require', name);
+
+  let r = gate('frozen', 'test/frozen.test.mjs', '--clock-ttl', '0');
+  assert.equal(r.code, 0, r.all);
+  assert.doesNotMatch(r.err, /real clock/);
+  assert.deepEqual(clockOf(home), { watched: true, reads: 0, sites: [] });
+  assert.equal(verify('frozen').code, 0, 'a gate that never read the clock does not expire');
+
+  const startedAt = Date.now();
+  r = gate('stamp', 'test/stamp.test.mjs');
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.err, /stamp PASSED · .* · reads the real clock \(1 read\(s\), e\.g\. src\/stamp\.mjs:1\): counts until \d\d-\d\d 00:00/);
+  let clock = clockOf(home);
+  assert.deepEqual(clock.sites, [['src/stamp.mjs:1', 1]]);
+  const midnight = new Date(startedAt);
+  midnight.setHours(24, 0, 0, 0);
+  assert.equal(clock.expires, midnight.toISOString());
+  let v = verify('stamp');
+  assert.equal(v.code, 0, v.all);
+  assert.match(v.out, /stamp\s+VERIFIED .* reads the clock: counts until \d\d-\d\d 00:00/);
+
+  // Carried over a change it can't depend on, the pass still expires when it would have.
+  write(dir, 'README.md', '# readme\n');
+  r = gate('stamp', 'test/stamp.test.mjs', '--rules', rules, '--trust-rules');
+  assert.match(r.err, /stamp CARRIED/);
+  assert.equal(clockOf(home).expires, clock.expires);
+
+  r = gate('dayjs', 'test/dayjs.test.mjs');
+  assert.deepEqual(clockOf(home).sites, [['test/dayjs.test.mjs:2', 1]], 'a date library reads the clock for its caller');
+
+  r = gate('today', 'test/stamp.test.mjs', '--clock-ttl', '0');
+  assert.equal(r.code, 0, r.all);
+  v = verify('today');
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /it read the real clock \(src\/stamp\.mjs:1\), so its pass expired at \d\d-\d\d \d\d:\d\d/);
+  r = gate('today', 'test/stamp.test.mjs', '--reuse');
+  assert.match(r.err, /today: runs: the earlier pass on this code does not count \(it read the real clock/);
+  // The rerun counts until midnight; only the expired pass can never prove anything again.
+  const pruned = cliIn(home, dir, 'prune', '--dry-run').out;
+  assert.match(pruned, /would remove .* today .*\(a pass that read the real clock, expired\)/);
+  assert.equal(pruned.match(/would remove/g).length, 1, pruned);
+
+  assert.equal(gate('x', 'test/stamp.test.mjs', '--clock-ttl', '5x').code, 64);
+});
+
+test("clock: Jest's vm contexts and worker threads are watched; only Node test runners are judged; --no-clock turns it off", () => {
+  const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
+  const dir = repo({
+    ...CLOCK_FILES,
+    'src/print.mjs': "console.log(new Date().toISOString());\n",
+    // A Jest-style environment: the test runs in a vm context whose stacks print through source
+    // maps (here: 100 lines on), then the process reads more than the watch follows, and a worker
+    // thread reads too. A file outside the repository, and a fake clock, don't count.
+    'test/contexts.cjs': [
+      "const vm = require('vm');",
+      "const path = require('path');",
+      "const { Worker, isMainThread } = require('worker_threads');",
+      'if (isMainThread) {',
+      "  const env = path.join(__dirname, 'env.test.js');",
+      '  const context = vm.createContext();',
+      "  vm.runInContext('new Date(); Date.now(); Date();', context, { filename: env });",
+      "  vm.runInContext('Error.prepareStackTrace = (e, cs) => [String(e), ...cs.map((c) => `    at ${c.getFileName()}:${c.getLineNumber() + 100}:1`)].join(\"\\\\n\"); Date.now();', context, { filename: env });",
+      "  vm.runInContext('Date.now();', context, { filename: path.join(__dirname, '..', '..', 'elsewhere.js') });",
+      "  vm.runInContext('Date = class extends Date { static now() { return 0; } }; Date.now();', context, { filename: env });",
+      '  new Worker(__filename);',
+      '  for (let i = 0; i < 1005; i++) Date.now();',
+      '} else {',
+      '  Date.now();',
+      '}',
+      '',
+    ].join('\n'),
+  });
+  // Windows may name the same folder by its short 8.3 alias (C:\Users\LONGNA~1): reads still count.
+  const alias = path.join(os.tmpdir(), path.relative(TMP, dir));
+  const before = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = '--max-old-space-size=512';
+  let clock;
+  try {
+    clock = startClock(alias);
+  } finally {
+    if (before === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = before;
+  }
+  assert.match(clock.env.NODE_OPTIONS, /^--max-old-space-size=512 --require "[^"\\]+clock-preload\.cjs"$/, 'kept, and without backslashes');
+  const r = spawnSync(process.execPath, [path.join(dir, 'test', 'contexts.cjs')], { env: { ...process.env, ...clock.env }, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const seen = readClock(clock);
+  assert.ok(!fs.existsSync(clock.dir));
+  const sites = Object.fromEntries(seen.flatMap((s) => s.sites));
+  assert.deepEqual(sites, { 'test/env.test.js:1': 3, 'test/env.test.js:101': 1, 'test/contexts.cjs:12': 996, 'test/contexts.cjs:14': 1 }, JSON.stringify(seen));
+  assert.equal(seen.reduce((n, s) => n + s.contexts, 0), 1);
+  assert.ok(seen.some((s) => s.capped && s.reads === 1000), 'the watch stops following after 1000 reads');
+
+  const gate = (name, ...cmd) => cliIn(home, dir, 'run', '--gate', name, '--no-machine', ...cmd);
+  let g = gate('off', '--no-clock', '--', 'node', FAKE, 'test/stamp.test.mjs');
+  assert.equal(g.code, 0, g.all);
+  assert.deepEqual(clockOf(home), { watched: false, why: 'turned off (--no-clock)' });
+  g = gate('script', '--', 'node', 'src/print.mjs');
+  assert.equal(g.code, 0, g.all);
+  assert.deepEqual(clockOf(home), { watched: false, why: 'no Jest, Vitest or node --test summary in the output' });
 });
 
 test("another test runner during the gate makes the run not idle; the gate's own processes and the tool's starters never count", async () => {

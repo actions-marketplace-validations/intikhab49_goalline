@@ -80,7 +80,7 @@ Outputs: `flagged` (`true` or `false`) and `report` (the path of the Markdown ca
 | | Commands | What you get |
 |---|---|---|
 | **Prove** | `run` · `verify` | A signed receipt every time a check runs, tied to the exact code it ran on (the git tree). `verify` says which gates already passed on this code without re-running anything. Each receipt records whether the machine was idle, whether the code changed during the run, and which build a browser suite tested. |
-| **Skip** | `run --reuse` · `--rules` · `trial-report` | Skip a gate this exact code already passed. With rules, also carry a pass over changes that can't affect the gate: a trial first, trusted only once it agrees, with the time saved reported. |
+| **Skip** | `run --reuse` · `--rules` · `trial-report` | Skip a gate this exact code already passed. With rules, also carry a pass over changes that can't affect the gate: a trial first, trusted only once it agrees, with the time saved reported. A pass whose tests read the real clock counts only until midnight. |
 | **Catch** | `goalpost` · `prove-red` · `guard` · `history` | Old tests on new code, so a moved expectation shows up with its values. New tests that must fail on the old code first, or they prove nothing. A Claude Code Stop hook that won't let the agent finish until it explains a moved test. And all of it replayed on your last 200 merged PRs. |
 
 Jest, Vitest and pytest are judged test by test; any other command is judged file by file, by its exit code. Zero dependencies.
@@ -263,12 +263,25 @@ goalline verify --require unit,api --input db=pg
 
 `db=pg` is the schema PostgreSQL reports for `$DATABASE_URL` (`pg_dump --schema-only`, without owners, grants and the lines that change on every dump) and the server's major version; `db=pg:TEST_DATABASE_URL` reads another variable. Any other probe is a command whose output says what matters, such as `--input db="sqlite3 dev.db .schema"` or `--input db="mysqldump --no-data --skip-dump-date app"`. In `verify` and `--reuse`, a receipt with inputs counts only while the same probe reads the same thing, and never when an input changed during the run. A password in a probe's URL never reaches the receipt. In `rules.json`, `"inputs": { "api-*": ["db"] }` says which gates depend on what, so a schema change doesn't re-run the unit tests.
 
+### The clock
+
+A test that reads the real clock can pass today and fail tomorrow on the same code: a token that expires after 30 days, a report for "this month", a fixture date that is now in the past. The clock can't be hashed, since it changes every second, so goalline watches who reads it. During `goalline run`, every Node process of the gate counts the reads of `Date.now()`, `new Date()` and `Date()` made by your own code: your tests and source files, directly or through a date library such as dayjs, moment, luxon or date-fns. A test runner timing a test doesn't count, and fake timers (`jest.useFakeTimers()`, `vi.useFakeTimers()`, `mock.timers`) replace `Date`, so their reads never reach the watch. It works in Jest's test environments, in Vitest's forks, threads and vmThreads pools, and in `node --test`.
+
+A pass that read the clock counts until the next midnight, local time:
+
+```
+goalline: unit PASSED · 4/4 passed · 2s · tree 47f3402 = commit fea9c46 · reads the real clock (2 read(s), e.g. src/today.mjs:1): counts until 10-25 00:00
+```
+
+After that, `verify` and `--reuse` say why it no longer counts (`it read the real clock (src/today.mjs:1), so its pass expired at 10-25 00:00`), and `prune` deletes it. `--clock-ttl 12h` sets another time (`0`: never reuse such a pass), and `--no-clock` turns the watch off. A suite that freezes time keeps its receipts as long as the code doesn't change.
+
 ## What a receipt is
 
 An [in-toto](https://in-toto.io) statement of type [`test-result/v0.1`](https://github.com/in-toto/attestation/blob/main/spec/predicates/test-result.md) about one git tree, in a DSSE envelope signed with this machine's Ed25519 key (`~/.receipts/keys`). It records:
 - what ran: command, exit code, test counts, failed test names, duration;
 - the tree, the commit, the Node version, the OS, the lockfile digest, `TZ`/`CI`/`NODE_ENV`, and hashes of any env vars you name;
 - the machine's state: whether the run was **idle**, meaning enough free memory and no other test runner during the run;
+- whether your own code read the real clock, and where;
 - the full log, gzipped next to the receipt.
 
 Receipts are keyed by the **content** of the code (the git tree), not the commit. A run on uncommitted work therefore verifies once exactly that work is committed, and a merge whose result equals an already-tested tree is already proven.
@@ -278,6 +291,8 @@ A receipt only counts in `verify` if all of these hold:
 - the tree matches;
 - the code didn't change during the run;
 - the Node major version matches;
+- every `--input` it was made with still reads the same;
+- if its tests read the real clock, it hasn't expired;
 - the result is a clean pass (no failures, no flaky tests, no counted patterns such as rate-limit hits, and at least one test ran).
 
 ## Trust model
@@ -320,7 +335,11 @@ Run it on the code before the change: it should fail there. `goalline prove-red`
 
 ### Can CI skip tests that already passed on the same code?
 
-Yes. `goalline run --reuse` keeps a signed receipt for every run, keyed by the git tree, and skips a gate that exact code already passed. With `--input db=pg`, a change to the database schema means it runs again.
+Yes. `goalline run --reuse` keeps a signed receipt for every run, keyed by the git tree, and skips a gate that exact code already passed. With `--input db=pg`, a change to the database schema means it runs again, and a pass that read the real clock counts only until midnight.
+
+### Does goalline handle tests that depend on the current date?
+
+In Node, yes. During `goalline run`, it counts the reads of the real clock (`Date.now()`, `new Date()`) that your own tests and code make under Jest, Vitest or `node --test`, and fake timers don't count. A pass that read the clock counts only until the next midnight (or `--clock-ttl`), so a cached pass never stands in for another day.
 
 ### Does goalline catch hard-coded answers?
 
@@ -339,7 +358,8 @@ It is free and open source (MIT). It needs Node 20 or newer and git, and has zer
 - **Scratch copies go in the temp folder** (`GOALLINE_SCRATCH` to move them). Never put them under a folder whose name starts with a dot: Jest configs whose `testMatch` starts with `<rootDir>` find no tests there.
 - **Scratch copies link your checkout's `node_modules` instead of installing.** When the lockfile or setup files differ between base and head, the report says so, and a red can then be a setup error rather than a behaviour change.
 - **Python packages come from the environment the command runs in**, not from the head's requirements or lockfile. `history --deps-root` installs npm lockfiles only.
-- **The database counts only when you name it** (`--input db=pg`), and per gate, not per test. Env vars named in `--env-keys` are recorded but not checked, and the clock isn't part of the fingerprint yet.
+- **The database counts only when you name it** (`--input db=pg`), and per gate, not per test. Env vars named in `--env-keys` are recorded but not checked.
+- **The clock is watched in Node only**, per gate, and through `Date`. pytest runs aren't watched, and Playwright's code under test reads the browser's clock, so their receipts don't expire. `Intl` formatting with no date and `performance.timeOrigin` aren't watched.
 - **`goalpost` catches edited tests, not hard-coded answers.** Hard-coded answers still need hidden tests or mutation testing.
 
 ## The old name

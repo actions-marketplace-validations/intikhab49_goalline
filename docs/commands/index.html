@@ -101,8 +101,8 @@ footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid
 <main>
 <p class="crumbs"><a href="https://intikhab49.github.io/goalline/">goalline</a> / Commands</p>
 <h1>goalline command reference</h1>
-<p class="lead">Every command and option of goalline 0.11.0, exactly as <code>goalline help</code> prints it.</p>
-<pre><code>goalline 0.11.0: goal-line technology for your tests. Signed receipts that a check ran on this
+<p class="lead">Every command and option of goalline 0.12.0, exactly as <code>goalline help</code> prints it.</p>
+<pre><code>goalline 0.12.0: goal-line technology for your tests. Signed receipts that a check ran on this
 exact code, and checks that catch a coding agent moving the goalposts. (Its old name, receipts, still works.)
 
   goalline run --gate &lt;name&gt; [options] -- &lt;command&gt;
@@ -124,6 +124,10 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
                             the schema pg_dump reports for $DATABASE_URL (pg:VAR for another
                             variable); any other probe is a command whose output says what
                             matters. Repeatable. In --rules, &quot;inputs&quot; names the gates that need each
+      --clock-ttl &lt;time&gt;    when the project&#x27;s code reads the real clock (Date.now(), new Date()) in a
+                            Jest, Vitest or node --test run, its receipt counts until the next midnight;
+                            this sets another time instead (12h, 7d, or 0: never). Fake timers don&#x27;t count
+      --no-clock            don&#x27;t watch the clock
 
   goalline verify [--require a,b,browser:2] [--idle browser] [--input db=pg] [--json]
       Show which gates have valid receipts for the code in this checkout, without re-running them.
@@ -161,8 +165,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
       --plan counts what would run; --config &lt;file.json&gt; for several areas.
 
   goalline prune [--older-than 30d] [--before &lt;time&gt;] [--tree &lt;sha&gt;] [--gate &lt;name&gt;] [--dry-run]
-      Delete receipts that can never prove anything (unreadable, or the code changed during the
-      run), plus the ones that match every filter given. A failed or flagged run is never deleted
+      Delete receipts that can never prove anything (unreadable, the code changed during the run,
+      or a pass that read the real clock and expired), plus the ones that match every filter given. A failed or flagged run is never deleted
       just because a later run passed: it is the record that the gate was flaky.
 
   goalline trial-report             what reuse saved, and how the rules trial is going
@@ -180,13 +184,13 @@ Tests that need a database (goalpost, prove-red):
 goalpost and prove-red exit 2 when they flag something. Receipts live in ~/.receipts (GOALLINE_HOME).</code></pre>
 <p>Install: <code>npm install -g github:intikhab49/goalline</code>, or run any command with <code>npx github:intikhab49/goalline &lt;command&gt;</code>.</p>
 <h2>Related</h2>
-<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a>: 19 of 84 test-editing PRs moved an expectation</li></ul>
+<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a>: which tests read the real clock, and passes that expire</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a>: 19 of 84 test-editing PRs moved an expectation</li></ul>
 
 </main>
 <footer>
-goalline 0.11.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.12.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
-Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
+Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>
 </body>
 </html>

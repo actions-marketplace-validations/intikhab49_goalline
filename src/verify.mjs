@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { clockProblem } from './clock.mjs';
 import { repoName, repoRoot, workingTree } from './git.mjs';
 import { describeInputs, inputProblems, parseInputs, readInputs } from './inputs.mjs';
 import { describeCounts, describeMachine } from './run.mjs';
@@ -33,6 +34,8 @@ export function judge(entry, cur, keys) {
     }
   }
   if (cur.inputs !== null) problems.push(...inputProblems(ext.inputs, cur.inputs || {}));
+  const expired = ext.kind === 'run' || ext.kind === 'carried' ? clockProblem(ext.clock) : null;
+  if (expired) problems.push(expired);
   const result = st.predicate?.result;
   if (result === 'FAILED') problems.push(ext.kind === 'run' ? `failed (exit ${ext.exitCode})` : 'failed');
   const warned = result === 'WARNED';
@@ -66,11 +69,13 @@ const parseRequire = (s) =>
 
 function latestText(r) {
   const e = r.ext;
+  // A pass that read the real clock says how long it counts.
+  const until = e.clock?.expires ? ` · reads the clock: counts until ${fmtWhen(e.clock.expires)}` : '';
   if (e.kind === 'carried') {
-    return `carried from tree ${short(e.carriedFrom)} (${e.changed.length} file(s) changed since, none it depends on) · ${describeCounts(e.counts)} · ${fmtWhen(e.startedAt)}`;
+    return `carried from tree ${short(e.carriedFrom)} (${e.changed.length} file(s) changed since, none it depends on) · ${describeCounts(e.counts)} · ${fmtWhen(e.startedAt)}${until}`;
   }
   if (e.kind === 'run') {
-    return `${describeCounts(e.counts)} · ${fmtWhen(e.startedAt)} · ${fmtDuration(e.durationMs)} · ${describeMachine(e.machine)}`;
+    return `${describeCounts(e.counts)} · ${fmtWhen(e.startedAt)} · ${fmtDuration(e.durationMs)} · ${describeMachine(e.machine)}${until}`;
   }
   return `${e.summary || r.st.predicate.result} · ${fmtWhen(e.startedAt)}`;
 }

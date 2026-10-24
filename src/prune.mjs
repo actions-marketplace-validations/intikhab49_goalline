@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { clockProblem } from './clock.mjs';
 import { extOf } from './store.mjs';
 import { fmtWhen, home, short, UsageError } from './util.mjs';
 
@@ -33,10 +34,12 @@ function readStore(store) {
           const entry = { file, log: file.replace(/\.dsse\.json$/, '.log.gz'), tree, gate: gateDir };
           try {
             const envelope = JSON.parse(fs.readFileSync(file, 'utf8'));
-            const ext = extOf(JSON.parse(Buffer.from(envelope.payload, 'base64').toString('utf8')));
+            const statement = JSON.parse(Buffer.from(envelope.payload, 'base64').toString('utf8'));
+            const ext = extOf(statement);
             entry.gate = ext.gate || gateDir;
             entry.at = Date.parse(ext.startedAt) || fs.statSync(file).mtimeMs;
             if (ext.kind === 'run' && ext.treeStable === false) entry.void = 'the code changed during the run';
+            else if (statement.predicate?.result === 'PASSED' && clockProblem(ext.clock)) entry.void = 'a pass that read the real clock, expired';
           } catch {
             entry.at = fs.statSync(file).mtimeMs;
             entry.void = 'unreadable receipt';

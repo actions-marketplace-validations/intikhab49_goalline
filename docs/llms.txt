@@ -2,12 +2,13 @@
 
 > Free, open source CLI and GitHub Action that catches AI coding agents editing tests to pass. It replays the old version of every test a change edited against the new code, so a moved expectation shows up with its exact old and new values. It also keeps signed receipts for every check, so CI can skip what the same code already passed.
 
-- Run: `npx github:intikhab49/goalline <command>` or `npm install -g github:intikhab49/goalline`. Node 20+ and git, zero dependencies, MIT. Version 0.11.0.
+- Run: `npx github:intikhab49/goalline <command>` or `npm install -g github:intikhab49/goalline`. Node 20+ and git, zero dependencies, MIT. Version 0.12.0.
 - `goalline goalpost --base origin/main -- npx jest {files}`: old tests on the new code. Verdicts: HELD, MOVED (with old and new values), BROKE, CRASHED (not judged), EMPTY, UNKNOWN. Exits 2 when something is flagged.
 - `goalline prove-red`: new tests must fail on the base code, or they test nothing.
 - `goalline guard --hook`: a Claude Code Stop hook that keeps the agent working until it restores a moved expectation or records why (`guard --ack ... --why ...`, ledger via `guard --report`).
 - `goalline history --from-git`: replays the last 200 merged pull requests and reports what goalpost would have flagged.
 - `goalline run --gate <name> --reuse`: signed receipts (in-toto test-result, DSSE, Ed25519) keyed by the git tree; skips a gate the same code already passed. `--input db=pg` adds the PostgreSQL schema to the receipt. `goalline verify --require a,b` says which gates are proven.
+- `goalline run` also watches the real clock in Jest, Vitest and node --test runs: a pass whose own tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`); fake timers don't count.
 - Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.
 - GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {files}`. Marketplace: https://github.com/marketplace/actions/goalline-catch-ai-edited-tests
 - Benchmark: on pallets/click's last 200 merged PRs, 84 edited a test, 63 kept every old test passing, 19 were flagged with values and 2 were low risk, in about 2 minutes.
@@ -22,6 +23,7 @@
 - [Check that new tests fail on the old code](https://intikhab49.github.io/goalline/prove-red/): A test that passes before the fix proves nothing. goalline prove-red runs a change's new tests on the base code and flags any that already pass.
 - [Skip CI tests that the exact same code already passed](https://intikhab49.github.io/goalline/skip-tests-already-passed/): goalline keeps a signed receipt for every test run, keyed by the git tree, so a gate this exact code already passed is skipped instead of run again.
 - [Test caching that notices when the database schema changed](https://intikhab49.github.io/goalline/database-schema-inputs/): goalline --input db=pg hashes the schema PostgreSQL reports before and after each test run, so a cached pass never stands in for a different database.
+- [Find the tests that read the real clock](https://intikhab49.github.io/goalline/tests-that-read-the-clock/): goalline counts the real-clock reads your own tests and code make under Jest, Vitest or node --test, and a pass that read the clock counts until midnight.
 - [Replaying 200 merged pull requests of pallets/click](https://intikhab49.github.io/goalline/benchmark/): goalline history on pallets/click: of the last 200 merged PRs, 84 edited a test, 63 kept every old test passing and 19 moved an expectation.
 - [goalline command reference](https://intikhab49.github.io/goalline/commands/): Every goalline command and option, from goalline help: run, verify, goalpost, prove-red, guard, history, prune and trial-report.
 

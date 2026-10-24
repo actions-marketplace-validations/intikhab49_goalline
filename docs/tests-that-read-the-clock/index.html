@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find tests that read the real clock, and expire their cache</title>
+<meta name="description" content="goalline counts the real-clock reads your own tests and code make under Jest, Vitest or node --test, and a pass that read the clock counts until midnight.">
+<link rel="canonical" href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">
+<link rel="icon" href="https://intikhab49.github.io/goalline/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Intikhab Azam">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="goalline">
+<meta property="og:title" content="Find tests that read the real clock, and expire their cache">
+<meta property="og:description" content="goalline counts the real-clock reads your own tests and code make under Jest, Vitest or node --test, and a pass that read the clock counts until midnight.">
+<meta property="og:url" content="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">
+<meta property="og:image" content="https://intikhab49.github.io/goalline/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="goalline: did your agent fix the code, or the test? Old tests replayed on new code.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/plain" href="https://intikhab49.github.io/goalline/llms.txt" title="llms.txt">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://intikhab49.github.io/goalline/tests-that-read-the-clock/#article",
+   "headline": "Find the tests that read the real clock",
+   "description": "goalline counts the real-clock reads your own tests and code make under Jest, Vitest or node --test, and a pass that read the clock counts until midnight.",
+   "url": "https://intikhab49.github.io/goalline/tests-that-read-the-clock/",
+   "inLanguage": "en",
+   "author": {
+    "@type": "Person",
+    "@id": "https://github.com/intikhab49",
+    "name": "Intikhab Azam",
+    "url": "https://github.com/intikhab49"
+   },
+   "dateModified": "2026-10-24",
+   "isPartOf": {
+    "@id": "https://intikhab49.github.io/goalline/#website"
+   },
+   "about": {
+    "@id": "https://intikhab49.github.io/goalline/#code"
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "goalline",
+     "item": "https://intikhab49.github.io/goalline/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "The clock",
+     "item": "https://intikhab49.github.io/goalline/tests-that-read-the-clock/"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<style>
+:root{--ink:#16202c;--muted:#5a6675;--blue:#2a78d6;--coral:#e8553a;--bg:#fbfcfd;--code:#0f1722;--line:#e3e8ee}
+*{box-sizing:border-box}
+body{margin:0;font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+.top{border-bottom:1px solid var(--line);background:#fff}
+.top div{max-width:980px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center}
+.top a{color:var(--ink);text-decoration:none;font-size:.95rem}
+.top a.brand{font-family:Georgia,serif;font-weight:700;font-size:1.2rem;margin-right:auto}
+main{max-width:980px;margin:0 auto;padding:28px 22px 64px}
+img{max-width:100%;height:auto}
+h1{font-size:2rem;line-height:1.2;margin:22px 0 12px}
+h2{font-size:1.35rem;margin:44px 0 10px}
+h3{font-size:1.02rem;margin:22px 0 4px}
+p.lead{font-size:1.12rem;color:var(--muted)}
+a{color:var(--blue)}
+.crumbs{font-size:.88rem;color:var(--muted)}
+.crumbs a{color:var(--muted)}
+.cta{display:inline-block;margin:8px 10px 0 0;padding:11px 18px;border-radius:8px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600}
+.cta.alt{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+pre{background:var(--code);color:#dfe7ef;padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:.86rem;line-height:1.5}
+code{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+p code,li code,td code{background:#eef2f6;padding:1px 5px;border-radius:4px;font-size:.84em}
+.t{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:#fff}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f3f6f9;font-weight:600}
+.stat{color:var(--coral);font-weight:700}
+ul{padding-left:22px}
+footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
+</style>
+</head>
+<body>
+<header class="top"><div><a class="brand" href="https://intikhab49.github.io/goalline/">goalline</a>
+<a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a><a href="https://intikhab49.github.io/goalline/commands/">Commands</a><a href="https://github.com/intikhab49/goalline">GitHub</a></div></header>
+<main>
+<p class="crumbs"><a href="https://intikhab49.github.io/goalline/">goalline</a> / The clock</p>
+<h1>Find the tests that read the real clock</h1>
+<p class="lead">A test that reads the real clock can pass today and fail tomorrow on the same code. During <code>goalline run</code>, goalline counts every <code>Date.now()</code>, <code>new Date()</code> and <code>Date()</code> your own tests and source files make, and a pass that read the clock counts only until the next midnight.</p>
+<h2>Why a pass can expire</h2>
+<p>The same code can pass today and fail tomorrow when a test reads the real clock: a token that expires after 30 days, a report for 'this month', a fixture date that is now in the past. A cache keyed by the code alone can't see that, and the clock can't be hashed, because it changes every second. So goalline watches who reads it.</p>
+
+<h2>See it</h2>
+<pre><code>goalline run --gate unit -- npx vitest run
+goalline: unit PASSED · 4/4 passed · 2s · tree 47f3402 = commit fea9c46 · reads the real clock (2 read(s), e.g. src/today.mjs:1): counts until 10-25 00:00</code></pre>
+
+<p><code>goalline verify</code> shows how long the pass counts. After midnight, <code>verify</code> and <code>--reuse</code> say why it no longer does: <code>it read the real clock (src/today.mjs:1), so its pass expired at 10-25 00:00</code>.</p>
+
+<h2>Whose read it is</h2>
+<ul><li>Every Node process of the gate loads a small preload (<code>NODE_OPTIONS=--require</code>) that watches <code>Date.now()</code>, <code>new Date()</code> with no arguments, and <code>Date()</code>.</li><li>A read counts when the first file behind it is yours: a test or source file in the repository, outside <code>node_modules</code>.</li><li>A date library reads the clock for the code that calls it, so <code>dayjs()</code>, <code>moment()</code>, luxon's <code>DateTime.now()</code> and date-fns count as your read.</li><li>A library's own read doesn't count: a test runner timing a test, a logger stamping a line.</li><li>Fake timers (<code>jest.useFakeTimers()</code>, <code>vi.useFakeTimers()</code>, <code>mock.timers</code>) replace <code>Date</code>, so their reads never reach the watch. A suite that freezes time keeps its receipts as long as the code doesn't change.</li></ul>
+
+<h2>Where it works</h2>
+<p>Jest, including the vm contexts its test environments run in; Vitest, in its forks, threads and vmThreads pools; and <code>node --test</code>. Checked against Jest 30.5 and Vitest 5.0. The watch adds about 5 to 10 microseconds for each clock read it looks at, and Jest itself makes about 80 per test file.</p>
+
+<h2>Options</h2>
+<ul><li><code>--clock-ttl 12h</code> sets how long such a pass counts, instead of the next midnight; <code>--clock-ttl 0</code> never reuses it.</li><li><code>--no-clock</code> turns the watch off for a gate.</li><li><code>goalline prune</code> deletes passes that read the clock and expired: they can never prove anything again.</li></ul>
+
+<h2>Limits</h2>
+<ul><li>Node only. pytest runs aren't watched, and Playwright's code under test reads the browser's clock, so their receipts don't expire.</li><li>It watches <code>Date</code>, not <code>Intl</code> formatting with no date, or <code>performance.timeOrigin</code>.</li><li>Per gate, not per test: one read anywhere limits the whole gate's pass.</li></ul>
+
+<h2>Related</h2>
+<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a>: 19 of 84 test-editing PRs moved an expectation</li><li><a href="https://intikhab49.github.io/goalline/commands/">Commands</a>: every command and option</li></ul>
+
+</main>
+<footer>
+goalline 0.12.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+<a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
+Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
+</footer>
+</body>
+</html>
