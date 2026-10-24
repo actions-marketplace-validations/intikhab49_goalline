@@ -25,6 +25,7 @@ fi
 args=("$check" --repo "$repo" --base "$base")
 [ -n "${INPUT_CWD:-}" ] && args+=(--cwd "$INPUT_CWD")
 [ -n "${INPUT_TESTS:-}" ] && args+=(--tests "$INPUT_TESTS")
+[ "$check" = goalpost ] && [ "${INPUT_ACKS:-true}" = "false" ] && args+=(--no-acks)
 
 out="${RUNNER_TEMP:-/tmp}/goalline-$check.txt"
 node "$GITHUB_ACTION_PATH/bin/goalline.mjs" "${args[@]}" -- "$INPUT_COMMAND" | tee "$out"
@@ -40,6 +41,15 @@ fi
 flagged=false
 [ "$code" -eq 2 ] && flagged=true
 { echo "report=$report"; echo "flagged=$flagged"; } >> "$GITHUB_OUTPUT"
+
+# What the change explains doesn't fail the step, so it goes where reviewers look: a warning on each
+# such test file, and the count as the `explained` output.
+receipt=$(sed -n 's/^receipt: //p' "$out" | tail -n 1)
+if [ "$check" = goalpost ] && [ -n "$receipt" ] && [ -f "$receipt" ]; then
+  node "$GITHUB_ACTION_PATH/action/explained.mjs" "$receipt"
+else
+  echo "explained=0" >> "$GITHUB_OUTPUT"
+fi
 
 if [ "$flagged" = true ] && [ "${INPUT_FAIL_ON_FLAG:-true}" != "true" ]; then exit 0; fi
 exit "$code"

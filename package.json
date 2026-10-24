@@ -1,6 +1,6 @@
 {
   "name": "goalline",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Goal-line technology for your tests: signed receipts for every check, and the old tests replayed on new code to catch a test that was edited to pass.",
   "type": "module",
   "bin": {

@@ -109,6 +109,7 @@ footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid
 <pre><code>goalline guard --ack &quot;src/cart.spec.ts::Cart applies the discount&quot; --why &quot;the task asks for the discount to apply before tax&quot;</code></pre>
 
 <p>Editing the test to match does not get past the guard, because it runs the <strong>old</strong> version of the test. The reasons form the reviewer's ledger: <code>goalline guard --report</code> prints them as Markdown for the pull request.</p>
+<p>The reasons go in <code>.goalpost-acks.json</code>. Commit it with the change, and the <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> shows each one on its card, next to the old and new values. Only the entries the change adds count: one already on the base branch explained an earlier change.</p>
 
 <h2>Set it up</h2>
 <p>Install goalline once (<code>npm install -g github:intikhab49/goalline</code>), then add the hook to <code>.claude/settings.json</code>. The timeout is in seconds; a cold Jest run can take more than a minute.</p>
@@ -138,7 +139,7 @@ footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid
 
 </main>
 <footer>
-goalline 0.13.1 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.14.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
 Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>

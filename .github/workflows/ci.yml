@@ -52,3 +52,16 @@ jobs:
           fail-on-flag: 'false'
       - name: the action flagged it
         run: test "${{ steps.goalline.outputs.flagged }}" = "true"
+      - name: the same change, explained in .goalpost-acks.json
+        run: bash test/action-fixture.sh "$RUNNER_TEMP/explained" explained
+      - id: explained
+        uses: ./
+        with:
+          repo: ${{ runner.temp }}/explained
+          base: main
+          command: node ${{ github.workspace }}/test/fake-jest.mjs {files}
+      - name: the explained change passes, with its reason on the card
+        run: |
+          test "${{ steps.explained.outputs.flagged }}" = "false"
+          test "${{ steps.explained.outputs.explained }}" = "1"
+          grep -q "explained: add now counts one more, as the task asks" "${{ steps.explained.outputs.report }}"

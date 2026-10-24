@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { ACKS, acksAt, fileReason, ownReason } from './acks.mjs';
 import { freshDb, loadContext, recordCheck, runTests, runWithSetup, tally, writeInto } from './checks.mjs';
 import { git, readAt } from './git.mjs';
 import { describeSignals, testSignals, testTitles } from './parse.mjs';
@@ -172,6 +173,21 @@ export function applyControl(verdict, s) {
   return { ...verdict, note: `${counted.length} of ${verdict.note.replace(/^\d+ of /, '')}; ${why}`, failing: counted };
 }
 
+// What the change says about a flagged file (acks.mjs): one reason for the whole file ('*'), and one
+// for each failing old test of a MOVED file that has its own. allExplained when nothing flagged in it
+// is left without a reason.
+export function explain(c, acks) {
+  if (!acks.length || !FLAG.has(c.verdict.kind)) return;
+  const paths = [c.path, c.now].filter(Boolean);
+  const whole = fileReason(acks, paths);
+  const failing = c.verdict.kind === 'MOVED' ? c.verdict.failing || [] : [];
+  const own = failing.map((f) => ({ test: f.name, why: ownReason(acks, paths, f.name) }));
+  const listed = own.filter((x) => x.why);
+  if (!whole && !listed.length) return;
+  c.explained = [...(whole ? [{ test: '*', why: whole }] : []), ...listed];
+  c.allExplained = Boolean(whole) || (own.length > 0 && listed.length === own.length);
+}
+
 // Added lines that can switch a test off without removing anything: an early return, a dead branch,
 // a skip, a focus or an expected failure, in JavaScript or Python. Those never count as low risk.
 const DISABLING =
@@ -185,15 +201,19 @@ export function onlyAdded(root, mb, head, oldPath, newPath) {
 }
 
 // The PR comment: what changed, sorted by how much it needs a reviewer, with the exact old and new
-// values; the full table follows, folded.
-function markdown(ctx, cands, verdict) {
+// values and the reasons the change gives; the full table follows, folded.
+function markdown(ctx, cands, verdict, acksFile) {
   const esc = (s) => String(s).replace(/\|/g, '\\|');
   const file = (c) => `\`${c.path}\`${c.now ? (c.now !== c.path ? ` (now \`${c.now}\`)` : '') : ' (deleted)'}`;
-  const tests = (c) => (c.verdict.failing || []).map((f) => `  - ✗ ${f.name}${f.why ? `: ${f.why}` : ''}`);
-  const moved = cands.filter((c) => c.verdict.kind === 'MOVED');
-  const look = [...moved.filter((c) => !c.additionsOnly), ...cands.filter((c) => c.verdict.kind === 'BROKE')];
+  const reason = (c, test) => c.explained?.find((x) => x.test === test)?.why;
+  const tests = (c) =>
+    (c.verdict.failing || []).flatMap((f) => [`  - ✗ ${f.name}${f.why ? `: ${f.why}` : ''}`, ...(reason(c, f.name) ? [`    - explained: ${reason(c, f.name)}`] : [])]);
+  const open = cands.filter((c) => !c.allExplained);
+  const moved = open.filter((c) => c.verdict.kind === 'MOVED');
+  const look = [...moved.filter((c) => !c.additionsOnly), ...open.filter((c) => c.verdict.kind === 'BROKE')];
   const low = moved.filter((c) => c.additionsOnly);
-  const notJudged = cands.filter((c) => c.verdict.kind === 'CRASHED' || c.verdict.kind === 'UNKNOWN');
+  const notJudged = open.filter((c) => c.verdict.kind === 'CRASHED' || c.verdict.kind === 'UNKNOWN');
+  const explained = cands.filter((c) => c.allExplained);
   const held = cands.filter((c) => c.verdict.kind === 'HELD' || c.verdict.kind === 'EMPTY');
   const title = look.length
     ? `${look.length} test file(s) need a look`
@@ -201,7 +221,9 @@ function markdown(ctx, cands, verdict) {
       ? `${low.length} low-risk change(s), nothing that needs a look`
       : notJudged.length
         ? 'nothing proven either way'
-        : 'every old expectation still holds';
+        : explained.length
+          ? `${explained.length} test file(s) changed, each explained`
+          : 'every old expectation still holds';
   const out = [
     `### Goalpost: ${title}`,
     '',
@@ -219,10 +241,19 @@ function markdown(ctx, cands, verdict) {
     out.push('');
   }
   if (notJudged.length) out.push(`**Not judged**: ${notJudged.map((c) => `${file(c)} (${c.verdict.note})`).join('; ')}.`, '');
+  if (explained.length) {
+    out.push(`**Explained**: these old tests no longer pass on the new code, and the change says why in \`${acksFile}\` (written by \`goalline guard --ack\`). Check that each reason matches the change.`, '');
+    for (const c of explained) {
+      const whole = reason(c, '*');
+      out.push(`- ${file(c)}${c.verdict.failing?.length ? '' : `: ${c.verdict.note}`}`, ...(whole ? [`  - explained: ${whole}`] : []), ...tests(c));
+    }
+    out.push('');
+  }
   if (held.length) out.push(`**Held**: ${held.length} old test file(s) still pass on the new code.`, '');
   const rows = cands.map((c) => {
     const detail = [c.verdict.note, ...(c.verdict.failing || []).slice(0, 3).map((f) => `✗ ${f.name}${f.why ? `: ${f.why}` : ''}`), describeSignals(c.signals)].filter(Boolean);
-    return `| \`${c.path}\`${c.now ? '' : ' (deleted)'} | ${FLAG.has(c.verdict.kind) ? '⚠️ ' : ''}${c.verdict.kind}${c.additionsOnly && c.verdict.kind === 'MOVED' ? ' (low risk)' : ''} | ${esc(detail.join('<br>'))} |`;
+    const kind = `${c.verdict.kind}${c.additionsOnly && c.verdict.kind === 'MOVED' ? ' (low risk)' : ''}${c.allExplained ? ' (explained)' : ''}`;
+    return `| \`${c.path}\`${c.now ? '' : ' (deleted)'} | ${FLAG.has(c.verdict.kind) ? '⚠️ ' : ''}${kind} | ${esc(detail.join('<br>'))} |`;
   });
   out.push('<details><summary>Every file</summary>', '', '| Test file | Result | Detail |', '|---|---|---|', ...rows, '', '</details>', '', `**${verdict}**`, '');
   return out.join('\n');
@@ -355,23 +386,38 @@ export async function cmdGoalpost(opts, command) {
       }
     }
 
-    const flagged = cands.filter((c) => FLAG.has(c.verdict.kind)).length;
-    const moved = cands.filter((c) => c.verdict.kind === 'MOVED' || c.verdict.kind === 'BROKE').length;
-    const unknown = flagged - moved;
+    // What the change says about them: its own entries in .goalpost-acks.json (goalline guard --ack;
+    // --no-acks to leave them out). A flagged file it explains in full doesn't count against it.
+    const acksFile = typeof opts.acks === 'string' ? opts.acks : ACKS;
+    const acks = opts.noAcks ? [] : acksAt(ctx.root, ctx.mb, ctx.head, acksFile);
+    for (const c of cands) explain(c, acks);
+
+    const flaggedFiles = cands.filter((c) => FLAG.has(c.verdict.kind));
+    const open = flaggedFiles.filter((c) => !c.allExplained);
+    const explained = flaggedFiles.length - open.length;
+    const moved = open.filter((c) => c.verdict.kind === 'MOVED' || c.verdict.kind === 'BROKE').length;
+    const unknown = open.length - moved;
     const summary = Object.entries(tally(cands.map((c) => c.verdict.kind)))
       .map(([k, n]) => `${n} ${k.toLowerCase()}`)
       .join(', ');
+    const said = explained ? ` ${explained} file(s) are explained in ${acksFile}.` : '';
     let verdict = `HELD (${summary}). Every old test still passes on the new code.`;
     if (moved) {
-      verdict = `FLAGGED (${summary}). Old tests no longer pass on the new code: behaviour changed and the tests were edited to match. A person should confirm that was intended.${unknown ? ` ${unknown} file(s) could not be judged.` : ''}`;
-    } else if (unknown) verdict = `NOT JUDGED (${summary}). The old tests could not be run, or crashed inside the new code before reaching their expectations, so nothing is proven either way.`;
+      verdict = `FLAGGED (${summary}). Old tests no longer pass on the new code: behaviour changed and the tests were edited to match. A person should confirm that was intended.${unknown ? ` ${unknown} file(s) could not be judged.` : ''}${said}`;
+    } else if (unknown) verdict = `NOT JUDGED (${summary}). The old tests could not be run, or crashed inside the new code before reaching their expectations, so nothing is proven either way.${said}`;
+    else if (explained) verdict = `EXPLAINED (${summary}). Old tests no longer pass on the new code, and the change says why for each in ${acksFile} (goalline guard --ack). A person should check that each reason matches the change.`;
     const lines = [header, '', `Old versions of ${cands.length} edited or deleted test file(s), run on the new code.${newNote}`, ''];
     for (const c of cands) {
       const where = c.now ? (c.now !== c.path ? ` (now ${c.now})` : '') : ' (deleted by this change)';
       const lowRisk = c.verdict.kind === 'MOVED' && c.additionsOnly ? ' (low risk: the test only gained lines)' : '';
+      const reason = (test) => c.explained?.find((x) => x.test === test)?.why;
       lines.push(`  ${c.verdict.kind.padEnd(7)} ${c.path}${where}`, `          ${c.verdict.note}${lowRisk}`);
+      if (reason('*')) lines.push(`          explained: ${reason('*')}`);
       const failing = c.verdict.failing || [];
-      for (const f of failing.slice(0, 5)) lines.push(`            ✗ ${f.name}${f.why ? `: ${f.why}` : ''}`);
+      for (const f of failing.slice(0, 5)) {
+        lines.push(`            ✗ ${f.name}${f.why ? `: ${f.why}` : ''}`);
+        if (reason(f.name)) lines.push(`              explained: ${reason(f.name)}`);
+      }
       if (failing.length > 5) lines.push(`            ...and ${failing.length - 5} more`);
       const sig = describeSignals(c.signals);
       if (sig) lines.push(`          signals: ${sig}`);
@@ -380,10 +426,10 @@ export async function cmdGoalpost(opts, command) {
     if (!sc.depsMatch) lines.push(`note: node_modules come from ${ctx.depsFrom}, whose lockfile differs from the head commit.`);
     const report = `${lines.join('\n')}\n`;
     const saved = recordCheck(ctx, {
-      result: flagged ? 'WARNED' : 'PASSED',
+      result: flaggedFiles.length ? 'WARNED' : 'PASSED',
       summary,
       report,
-      markdown: markdown(ctx, cands, verdict),
+      markdown: markdown(ctx, cands, verdict, acksFile),
       details: {
         files: cands.map((c) => ({
           path: c.path,
@@ -396,13 +442,14 @@ export async function cmdGoalpost(opts, command) {
           additionsOnly: c.additionsOnly,
           ...(c.verdict.typesOff ? { typesOff: c.verdict.typesOff } : {}),
           ...(c.verdict.transplant ? { transplant: c.verdict.transplant } : {}),
+          ...(c.explained ? { explained: c.explained, allExplained: Boolean(c.allExplained) } : {}),
         })),
       },
       passed: cands.filter((c) => c.verdict.kind === 'HELD').map((c) => c.path),
       failed: cands.filter((c) => FLAG.has(c.verdict.kind)).map((c) => c.path),
     });
     process.stdout.write(`${report}\nreceipt: ${saved.file}\nPR comment: ${saved.markdown}\n`);
-    return flagged && !opts.noFail ? 2 : 0;
+    return open.length && !opts.noFail ? 2 : 0;
   } finally {
     if (opts.keep) console.error(`goalline: kept the scratch copy at ${sc.dir}`);
     else removeScratch(sc.dir);

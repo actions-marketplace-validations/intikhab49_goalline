@@ -565,7 +565,10 @@ def hook_page() -> tuple[str, str]:
    "For each one the agent either restores the behaviour or records why the change is intended:")}
 {pre('goalline guard --ack "src/cart.spec.ts::Cart applies the discount" --why "the task asks for the discount to apply before tax"')}
 {p("Editing the test to match does not get past the guard, because it runs the **old** version of the test. The "
-   "reasons form the reviewer's ledger: `goalline guard --report` prints them as Markdown for the pull request.")}
+   "reasons form the reviewer's ledger: `goalline guard --report` prints them as Markdown for the pull request.",
+   f"The reasons go in `.goalpost-acks.json`. Commit it with the change, and the [GitHub Action]({SITE}github-action/) "
+   "shows each one on its card, next to the old and new values. Only the entries the change adds count: one "
+   "already on the base branch explained an earlier change.")}
 <h2>Set it up</h2>
 {p("Install goalline once (`npm install -g github:intikhab49/goalline`), then add the hook to "
    "`.claude/settings.json`. The timeout is in seconds; a cold Jest run can take more than a minute.")}
@@ -604,10 +607,19 @@ def action_page(card: str) -> tuple[str, str]:
           command: python -m pytest {files}''')}
 <h2>Inputs</h2>
 {table(["Input", "Default", "What it does"], rows)}
-{p("Outputs: `flagged` (`true` or `false`) and `report` (the path of the Markdown card).")}
+{p("Outputs: `flagged` (`true` when something is flagged that the change doesn't explain), `explained` (how "
+   "many flagged test files the change explains) and `report` (the path of the Markdown card).")}
 <h2>The card on the job summary</h2>
 {p("This is the real card for a change that made `add(2, 3)` return 6 and edited its test to match, as Markdown:")}
 {pre(card)}
+<h2>Changes the agent explained</h2>
+{p(f"An agent stopped by the [Claude Code hook]({SITE}claude-code-stop-hook/) restores the behaviour or says why "
+   "the change is intended, with `goalline guard --ack`, which writes `.goalpost-acks.json`. Commit that file with "
+   "the change, and the card lists each explained test under **Explained**, with its old and new values and the "
+   "reason. A warning on the test file points the reviewer at it, and the step doesn't fail for it. A flagged "
+   "test without a reason still fails the step.",
+   "Only the entries the change itself adds count: one already on the base branch explained an earlier change to "
+   "that test, so it never explains a new one. With `acks: false`, every flag fails the step.")}
 <h2>New tests that test nothing</h2>
 {p(f"With `check: prove-red`, the action runs the new tests a pull request adds against the base code instead, "
    f"and flags any that already pass there. See [prove-red]({SITE}prove-red/).")}
@@ -867,7 +879,9 @@ def llms(help_text: str) -> tuple[str, str]:
              "tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`), as do "
              "reads of fake timers left at the real time; fake timers set to a fixed time don't count.",
              "- Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.",
-             f"- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {{files}}`. Marketplace: {MARKET}",
+             f"- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {{files}}`. A flagged test the "
+             "change explains in `.goalpost-acks.json` (its own `guard --ack` entries) shows its reason on the card "
+             f"and doesn't fail the step (`acks: false` to fail on every flag). Marketplace: {MARKET}",
              f"- Benchmark: on the last 200 merged PRs of pallets/click and pallets/jinja, {TOTAL['edited']} edited a "
              f"test and {len(FLAGS)} were flagged with their old and new values. Every flag was a deliberate change "
              f"its PR explains, and {len(UNSAID)} changed what users see without the changelog saying so. Every flag "

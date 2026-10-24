@@ -52,6 +52,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
       type check off, so its tests are judged on behaviour (--no-retry-untyped: leave it BROKE).
       An old test that only crashes inside the new code (its fixtures or mocks lack something the
       new code needs) is CRASHED: not judged, rather than MOVED.
+      A flagged test the change explains in .goalpost-acks.json (goalline guard --ack) shows its
+      reason and doesn't count against it; only entries the change added count (--no-acks: none).
 
   goalline prove-red [--base origin/main] [--head HEAD] [--cwd apps/web] -- npx jest {files}
       Run the NEW tests this change adds against the BASE code. A new test that passes there
@@ -63,6 +65,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
       so a Claude Code Stop hook keeps the agent working. --hook reads the hook's JSON on stdin.
       goalline guard --ack "<test file>::<test name>" --why "<reason>"   accept one change
       goalline guard --report                                           the reviewer's ledger
+      Acks go in .goalpost-acks.json; commit it and goalpost in CI shows the reasons. An entry
+      already on the base explained an earlier change, so it never counts again.
       --max-blocks <n>   stop blocking after n identical blocks (default 3)
 
   goalline history [--limit 200] [--cwd apps/web] [--out goalline-history] [--from-git] -- npx jest {files}
@@ -92,7 +96,7 @@ Tests that need a database (goalpost, prove-red):
   --teardown "<command>"         always run afterwards, e.g. "dropdb {db}"
 goalpost and prove-red exit 2 when they flag something. Receipts live in ~/.receipts (GOALLINE_HOME).`;
 
-const BOOLEANS = ['noMachine', 'noClock', 'json', 'keep', 'noFail', 'quiet', 'dryRun', 'reuse', 'reuseIdle', 'trustRules', 'retryUntyped', 'noRetryUntyped', 'noTransplant', 'hook', 'report', 'plan', 'summary', 'rejudgeTypes', 'fromGit', 'firstHeads'];
+const BOOLEANS = ['noMachine', 'noClock', 'json', 'keep', 'noFail', 'quiet', 'dryRun', 'reuse', 'reuseIdle', 'trustRules', 'retryUntyped', 'noRetryUntyped', 'noTransplant', 'noAcks', 'hook', 'report', 'plan', 'summary', 'rejudgeTypes', 'fromGit', 'firstHeads'];
 
 function cmdShow([file]) {
   if (!file) throw new UsageError('show needs a receipt file (.dsse.json)');

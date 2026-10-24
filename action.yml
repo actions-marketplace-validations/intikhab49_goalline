@@ -30,14 +30,21 @@ inputs:
     required: false
     default: ''
   fail-on-flag:
-    description: 'Fail the step when goalline flags something.'
+    description: 'Fail the step when goalline flags something the change does not explain.'
+    required: false
+    default: 'true'
+  acks:
+    description: 'Read .goalpost-acks.json (written by goalline guard --ack): a flagged test the change explains there shows its reason on the card and as a warning, and does not fail the step. Only entries the change added count. false: every flag counts.'
     required: false
     default: 'true'
 
 outputs:
   flagged:
-    description: 'true when goalline flagged something.'
+    description: 'true when goalline flagged something the change does not explain.'
     value: ${{ steps.run.outputs.flagged }}
+  explained:
+    description: 'How many flagged test files the change explains in full in .goalpost-acks.json.'
+    value: ${{ steps.run.outputs.explained }}
   report:
     description: 'Path to the Markdown summary, which is also added to the job summary.'
     value: ${{ steps.run.outputs.report }}
@@ -55,4 +62,5 @@ runs:
         INPUT_TESTS: ${{ inputs.tests }}
         INPUT_REPO: ${{ inputs.repo }}
         INPUT_FAIL_ON_FLAG: ${{ inputs.fail-on-flag }}
+        INPUT_ACKS: ${{ inputs.acks }}
       run: bash "$GITHUB_ACTION_PATH/action/run.sh"

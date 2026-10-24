@@ -134,9 +134,9 @@ jobs:
           command: python -m pytest {files}</code></pre>
 
 <h2>Inputs</h2>
-<div class="t"><table><thead><tr><th>Input</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>command</code></td><td>required</td><td>The test command, with {files} where the test files go: npx jest {files}, npx vitest run {files}, python -m pytest {files}.</td></tr><tr><td><code>check</code></td><td><code>goalpost</code></td><td>goalpost (the old tests on the new code) or prove-red (the new tests on the old code).</td></tr><tr><td><code>base</code></td><td>(see description)</td><td>The ref to compare against. Default: origin/&lt;the pull request base branch&gt;, else origin/main.</td></tr><tr><td><code>cwd</code></td><td>(see description)</td><td>The folder the tests run in, inside the repository (for a monorepo).</td></tr><tr><td><code>tests</code></td><td>(see description)</td><td>Globs that say which files are tests, comma separated. Default: the usual names for the runner.</td></tr><tr><td><code>repo</code></td><td>(see description)</td><td>The repository to check. Default: the checked-out workspace.</td></tr><tr><td><code>fail-on-flag</code></td><td><code>true</code></td><td>Fail the step when goalline flags something.</td></tr></tbody></table></div>
+<div class="t"><table><thead><tr><th>Input</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td><code>command</code></td><td>required</td><td>The test command, with {files} where the test files go: npx jest {files}, npx vitest run {files}, python -m pytest {files}.</td></tr><tr><td><code>check</code></td><td><code>goalpost</code></td><td>goalpost (the old tests on the new code) or prove-red (the new tests on the old code).</td></tr><tr><td><code>base</code></td><td>(see description)</td><td>The ref to compare against. Default: origin/&lt;the pull request base branch&gt;, else origin/main.</td></tr><tr><td><code>cwd</code></td><td>(see description)</td><td>The folder the tests run in, inside the repository (for a monorepo).</td></tr><tr><td><code>tests</code></td><td>(see description)</td><td>Globs that say which files are tests, comma separated. Default: the usual names for the runner.</td></tr><tr><td><code>repo</code></td><td>(see description)</td><td>The repository to check. Default: the checked-out workspace.</td></tr><tr><td><code>fail-on-flag</code></td><td><code>true</code></td><td>Fail the step when goalline flags something the change does not explain.</td></tr><tr><td><code>acks</code></td><td><code>true</code></td><td>Read .goalpost-acks.json (written by goalline guard --ack): a flagged test the change explains there shows its reason on the card and as a warning, and does not fail the step. Only entries the change added count. false: every flag counts.</td></tr></tbody></table></div>
 
-<p>Outputs: <code>flagged</code> (<code>true</code> or <code>false</code>) and <code>report</code> (the path of the Markdown card).</p>
+<p>Outputs: <code>flagged</code> (<code>true</code> when something is flagged that the change doesn't explain), <code>explained</code> (how many flagged test files the change explains) and <code>report</code> (the path of the Markdown card).</p>
 
 <h2>The card on the job summary</h2>
 <p>This is the real card for a change that made <code>add(2, 3)</code> return 6 and edited its test to match, as Markdown:</p>
@@ -160,6 +160,10 @@ The old versions of the tests this change edited or deleted, run on the new code
 
 **FLAGGED (1 moved). Old tests no longer pass on the new code: behaviour changed and the tests were edited to match. A person should confirm that was intended.**</code></pre>
 
+<h2>Changes the agent explained</h2>
+<p>An agent stopped by the <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> restores the behaviour or says why the change is intended, with <code>goalline guard --ack</code>, which writes <code>.goalpost-acks.json</code>. Commit that file with the change, and the card lists each explained test under <strong>Explained</strong>, with its old and new values and the reason. A warning on the test file points the reviewer at it, and the step doesn't fail for it. A flagged test without a reason still fails the step.</p>
+<p>Only the entries the change itself adds count: one already on the base branch explained an earlier change to that test, so it never explains a new one. With <code>acks: false</code>, every flag fails the step.</p>
+
 <h2>New tests that test nothing</h2>
 <p>With <code>check: prove-red</code>, the action runs the new tests a pull request adds against the base code instead, and flags any that already pass there. See <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a>.</p>
 
@@ -168,7 +172,7 @@ The old versions of the tests this change edited or deleted, run on the new code
 
 </main>
 <footer>
-goalline 0.13.1 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.14.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
 Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>

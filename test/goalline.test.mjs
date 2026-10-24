@@ -1180,6 +1180,78 @@ test('guard reads the Claude Code hook event, and stops blocking a stuck agent a
   assert.match(r.stderr, /WARNING: stopping with 1 unacknowledged changed test expectation\(s\), after blocking 1 times/);
 });
 
+const acksJson = (...list) => `${JSON.stringify(list.map(([test, why]) => ({ test, why, at: '2026-10-25T00:00:00.000Z' })), null, 2)}\n`;
+const CARRY = 'the add now counts the carry, as the task asks';
+
+test('guard: an acknowledgement already on the base explained an earlier change, not this one', () => {
+  const dir = repo({ 'src/add.mjs': ADD, 'test/add.test.mjs': ADD_TEST, '.goalpost-acks.json': acksJson(['test/add.test.mjs::adds two numbers', 'an earlier change']) });
+  git(dir, 'checkout', '-q', '-b', 'agent');
+  for (const [rel, text] of Object.entries(MOVED_EDITS)) write(dir, rel, text);
+  assert.equal(guard(dir).code, 2);
+  assert.equal(cli(dir, 'guard', '--ack', 'test/add.test.mjs::adds two numbers', '--why', CARRY).code, 0);
+  const r = guard(dir);
+  assert.equal(r.code, 0, r.all);
+  const ledger = cli(dir, 'guard', '--report').out;
+  assert.match(ledger, /the add now counts the carry/);
+  assert.doesNotMatch(ledger, /an earlier change/);
+});
+
+test('goalpost: a flagged test the change explains in .goalpost-acks.json shows its reason and does not count against it', () => {
+  let dir = repo();
+  onBranch(dir, 'moved', { ...MOVED_EDITS, '.goalpost-acks.json': acksJson(['test/add.test.mjs::adds two numbers', CARRY]) });
+  let r = goalpost(dir);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /✗ adds two numbers: Expected 5, received 6\n\s+explained: the add now counts the carry, as the task asks\n/);
+  assert.match(r.out, /EXPLAINED \(1 moved\)\. Old tests no longer pass on the new code, and the change says why for each in \.goalpost-acks\.json/);
+  const card = fs.readFileSync(/^PR comment: (.+)$/m.exec(r.out)[1], 'utf8');
+  assert.match(card, /^### Goalpost: 1 test file\(s\) changed, each explained$/m);
+  assert.match(card, /\*\*Explained\*\*: these old tests no longer pass on the new code, and the change says why in `\.goalpost-acks\.json`/);
+  assert.match(card, /  - ✗ adds two numbers: Expected 5, received 6\n    - explained: the add now counts the carry, as the task asks\n/);
+  assert.match(card, /\| ⚠️ MOVED \(explained\) \|/);
+  const file = statementOf(/^receipt: (.+)$/m.exec(r.out)[1]).predicate.configuration[0].annotations.details.files[0];
+  assert.deepEqual([file.explained, file.allExplained], [[{ test: 'adds two numbers', why: CARRY }], true]);
+
+  r = cli(dir, 'goalpost', '--base', 'main', '--quiet', '--no-acks', '--', 'node', FAKE, '{files}');
+  assert.equal(r.code, 2, 'with --no-acks every flag counts');
+  assert.doesNotMatch(r.out, /explained/);
+
+  // An entry for another test explains nothing here; one for the whole file explains all of it.
+  dir = repo();
+  onBranch(dir, 'moved', { ...MOVED_EDITS, '.goalpost-acks.json': acksJson(['test/add.test.mjs::adds three numbers', 'another test']) });
+  r = goalpost(dir);
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.out, /FLAGGED \(1 moved\)/);
+  dir = repo();
+  onBranch(dir, 'moved', { ...MOVED_EDITS, '.goalpost-acks.json': acksJson(['test/add.test.mjs', CARRY]) });
+  r = goalpost(dir);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /old tests fail on the new code\n\s+explained: the add now counts the carry/);
+
+  // Two moved tests, one explained: the file still needs a look, with the one reason shown.
+  const TWO = (a, b) =>
+    [
+      "import { add } from '../src/add.mjs';",
+      `test('adds two numbers', () => { const got = add(2, 3); if (got !== ${a}) throw new Error(\`Expected: ${a}\\nReceived: \${got}\`); });`,
+      `test('adds three numbers', () => { const got = add(add(1, 1), 1); if (got !== ${b}) throw new Error(\`Expected: ${b}\\nReceived: \${got}\`); });`,
+      '',
+    ].join('\n');
+  dir = repo({ 'src/add.mjs': ADD, 'test/add.test.mjs': TWO(5, 3) });
+  onBranch(dir, 'moved', { 'src/add.mjs': MOVED_EDITS['src/add.mjs'], 'test/add.test.mjs': TWO(6, 5), '.goalpost-acks.json': acksJson(['test/add.test.mjs::adds two numbers', CARRY]) });
+  r = goalpost(dir);
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.out, /FLAGGED \(1 moved\)/);
+  const partial = fs.readFileSync(/^PR comment: (.+)$/m.exec(r.out)[1], 'utf8');
+  assert.match(partial, /\*\*Needs a look\*\*[^]*✗ adds two numbers: Expected 5, received 6\n    - explained: the add now counts the carry[^]*✗ adds three numbers: Expected 3, received 5\n/);
+  assert.doesNotMatch(partial, /\*\*Explained\*\*/);
+
+  // The base's own entry explained an earlier change to this test, not this one.
+  dir = repo({ 'src/add.mjs': ADD, 'test/add.test.mjs': ADD_TEST, '.goalpost-acks.json': acksJson(['test/add.test.mjs::adds two numbers', 'an earlier change']) });
+  onBranch(dir, 'moved', MOVED_EDITS);
+  r = goalpost(dir);
+  assert.equal(r.code, 2, r.all);
+  assert.doesNotMatch(r.out, /explained/);
+});
+
 test('goalpost: an old test that fails on its own code too says nothing about the change, so it is not counted', () => {
   // The second test needs a service this machine lacks: it fails on the old code and the new alike.
   const ENV_TEST = (n, note = '') =>

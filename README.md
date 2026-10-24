@@ -71,9 +71,12 @@ jobs:
 | `base` | the pull request's base branch | The ref to compare against |
 | `cwd` | the repository root | The folder the tests run in, for a monorepo |
 | `tests` | the runner's usual file names | Globs that say which files are tests |
-| `fail-on-flag` | `true` | Fail the step when something is flagged |
+| `fail-on-flag` | `true` | Fail the step when something is flagged that the change doesn't explain |
+| `acks` | `true` | Read `.goalpost-acks.json`: a flagged test the change explains there shows its reason on the card and as a warning on the file, and doesn't fail the step. `false`: every flag counts |
 
-Outputs: `flagged` (`true` or `false`) and `report` (the path of the Markdown card). The action fetches the history it needs, so the default shallow checkout is fine. For pytest, set up Python and install the project (`pip install -e .` and pytest) before the step.
+Outputs: `flagged` (`true` when something is flagged that the change doesn't explain), `explained` (how many flagged test files the change explains) and `report` (the path of the Markdown card). The action fetches the history it needs, so the default shallow checkout is fine. For pytest, set up Python and install the project (`pip install -e .` and pytest) before the step.
+
+A change explains a moved test with `goalline guard --ack` (see [Stopping an agent that moved a goalpost](#stopping-an-agent-that-moved-a-goalpost)), which writes `.goalpost-acks.json`. Only the entries the change itself adds count: one already on the base branch explained an earlier change to that test, so it never explains a new one.
 
 ## What it does
 
@@ -218,7 +221,7 @@ It runs one check at a time, and only while no other test runner is busy and eno
 goalline guard --ack "src/cart.spec.ts::Cart applies the discount" --why "the task asks for the discount to apply before tax"
 ```
 
-The reasons form the reviewer's ledger (`goalline guard --report` prints it as Markdown for the PR). Editing the test to match does not get past the guard, because it runs the *old* version of the test. Nothing in the checkout changes: the snapshot is a loose commit object. The guard never blocks because of its own failure, and after `--max-blocks` (default 3) identical blocks it lets the agent stop with a warning, so a stuck agent is never trapped.
+The reasons form the reviewer's ledger (`goalline guard --report` prints it as Markdown for the PR). Commit `.goalpost-acks.json` with the change, and goalpost in CI (the [GitHub Action](#github-action)) shows each reason next to the old and new values, on its card and as a warning on the test file. Only the entries this change adds count, in the guard and in CI: one already on the base branch explained an earlier change. Editing the test to match does not get past the guard, because it runs the *old* version of the test. Nothing in the checkout changes: the snapshot is a loose commit object. The guard never blocks because of its own failure, and after `--max-blocks` (default 3) identical blocks it lets the agent stop with a warning, so a stuck agent is never trapped.
 
 In `.claude/settings.json` (the timeout is in seconds; a cold Jest run can take more than a minute):
 

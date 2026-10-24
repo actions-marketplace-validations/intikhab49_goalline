@@ -2,7 +2,7 @@
 
 > Free, open source CLI and GitHub Action that catches AI coding agents editing tests to pass. It replays the old version of every test a change edited against the new code, so a moved expectation shows up with its exact old and new values. It also keeps signed receipts for every check, so CI can skip what the same code already passed.
 
-- Run: `npx github:intikhab49/goalline <command>` or `npm install -g github:intikhab49/goalline`. Node 20+ and git, zero dependencies, MIT. Version 0.13.1.
+- Run: `npx github:intikhab49/goalline <command>` or `npm install -g github:intikhab49/goalline`. Node 20+ and git, zero dependencies, MIT. Version 0.14.0.
 - `goalline goalpost --base origin/main -- npx jest {files}`: old tests on the new code. Verdicts: HELD, MOVED (with old and new values), BROKE, CRASHED (not judged), EMPTY, UNKNOWN. Exits 2 when something is flagged.
 - `goalline prove-red`: new tests must fail on the base code, or they test nothing.
 - `goalline guard --hook`: a Claude Code Stop hook that keeps the agent working until it restores a moved expectation or records why (`guard --ack ... --why ...`, ledger via `guard --report`).
@@ -10,7 +10,7 @@
 - `goalline run --gate <name> --reuse`: signed receipts (in-toto test-result, DSSE, Ed25519) keyed by the git tree; skips a gate the same code already passed. `--input db=pg` adds the PostgreSQL schema to the receipt. `goalline verify --require a,b` says which gates are proven.
 - `goalline run` also watches the real clock in Jest, Vitest and node --test runs: a pass whose own tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`), as do reads of fake timers left at the real time; fake timers set to a fixed time don't count.
 - Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.
-- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {files}`. Marketplace: https://github.com/marketplace/actions/goalline-catch-ai-edited-tests
+- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {files}`. A flagged test the change explains in `.goalpost-acks.json` (its own `guard --ack` entries) shows its reason on the card and doesn't fail the step (`acks: false` to fail on every flag). Marketplace: https://github.com/marketplace/actions/goalline-catch-ai-edited-tests
 - Benchmark: on the last 200 merged PRs of pallets/click and pallets/jinja, 126 edited a test and 31 were flagged with their old and new values. Every flag was a deliberate change its PR explains, and 4 changed what users see without the changelog saying so. Every flag with its reason: https://intikhab49.github.io/goalline/benchmark/
 - No AI model is involved and no source code leaves the machine.
 - Independent project by Intikhab Azam.
@@ -86,9 +86,12 @@ jobs:
 | `base` | the pull request's base branch | The ref to compare against |
 | `cwd` | the repository root | The folder the tests run in, for a monorepo |
 | `tests` | the runner's usual file names | Globs that say which files are tests |
-| `fail-on-flag` | `true` | Fail the step when something is flagged |
+| `fail-on-flag` | `true` | Fail the step when something is flagged that the change doesn't explain |
+| `acks` | `true` | Read `.goalpost-acks.json`: a flagged test the change explains there shows its reason on the card and as a warning on the file, and doesn't fail the step. `false`: every flag counts |
 
-Outputs: `flagged` (`true` or `false`) and `report` (the path of the Markdown card). The action fetches the history it needs, so the default shallow checkout is fine. For pytest, set up Python and install the project (`pip install -e .` and pytest) before the step.
+Outputs: `flagged` (`true` when something is flagged that the change doesn't explain), `explained` (how many flagged test files the change explains) and `report` (the path of the Markdown card). The action fetches the history it needs, so the default shallow checkout is fine. For pytest, set up Python and install the project (`pip install -e .` and pytest) before the step.
+
+A change explains a moved test with `goalline guard --ack` (see [Stopping an agent that moved a goalpost](#stopping-an-agent-that-moved-a-goalpost)), which writes `.goalpost-acks.json`. Only the entries the change itself adds count: one already on the base branch explained an earlier change to that test, so it never explains a new one.
 
 ## What it does
 
@@ -233,7 +236,7 @@ It runs one check at a time, and only while no other test runner is busy and eno
 goalline guard --ack "src/cart.spec.ts::Cart applies the discount" --why "the task asks for the discount to apply before tax"
 ```
 
-The reasons form the reviewer's ledger (`goalline guard --report` prints it as Markdown for the PR). Editing the test to match does not get past the guard, because it runs the *old* version of the test. Nothing in the checkout changes: the snapshot is a loose commit object. The guard never blocks because of its own failure, and after `--max-blocks` (default 3) identical blocks it lets the agent stop with a warning, so a stuck agent is never trapped.
+The reasons form the reviewer's ledger (`goalline guard --report` prints it as Markdown for the PR). Commit `.goalpost-acks.json` with the change, and goalpost in CI (the [GitHub Action](#github-action)) shows each reason next to the old and new values, on its card and as a warning on the test file. Only the entries this change adds count, in the guard and in CI: one already on the base branch explained an earlier change. Editing the test to match does not get past the guard, because it runs the *old* version of the test. Nothing in the checkout changes: the snapshot is a loose commit object. The guard never blocks because of its own failure, and after `--max-blocks` (default 3) identical blocks it lets the agent stop with a warning, so a stuck agent is never trapped.
 
 In `.claude/settings.json` (the timeout is in seconds; a cold Jest run can take more than a minute):
 
@@ -400,7 +403,7 @@ The command was called `receipts` before 0.10. That name still works, and so do 
 
 # Command reference (goalline help)
 
-goalline 0.13.1: goal-line technology for your tests. Signed receipts that a check ran on this
+goalline 0.14.0: goal-line technology for your tests. Signed receipts that a check ran on this
 exact code, and checks that catch a coding agent moving the goalposts. (Its old name, receipts, still works.)
 
   goalline run --gate <name> [options] -- <command>
@@ -442,6 +445,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
       type check off, so its tests are judged on behaviour (--no-retry-untyped: leave it BROKE).
       An old test that only crashes inside the new code (its fixtures or mocks lack something the
       new code needs) is CRASHED: not judged, rather than MOVED.
+      A flagged test the change explains in .goalpost-acks.json (goalline guard --ack) shows its
+      reason and doesn't count against it; only entries the change added count (--no-acks: none).
 
   goalline prove-red [--base origin/main] [--head HEAD] [--cwd apps/web] -- npx jest {files}
       Run the NEW tests this change adds against the BASE code. A new test that passes there
@@ -453,6 +458,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
       so a Claude Code Stop hook keeps the agent working. --hook reads the hook's JSON on stdin.
       goalline guard --ack "<test file>::<test name>" --why "<reason>"   accept one change
       goalline guard --report                                           the reviewer's ledger
+      Acks go in .goalpost-acks.json; commit it and goalpost in CI shows the reasons. An entry
+      already on the base explained an earlier change, so it never counts again.
       --max-blocks <n>   stop blocking after n identical blocks (default 3)
 
   goalline history [--limit 200] [--cwd apps/web] [--out goalline-history] [--from-git] -- npx jest {files}
