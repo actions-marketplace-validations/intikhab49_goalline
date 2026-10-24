@@ -36,7 +36,7 @@
     "name": "Intikhab Azam",
     "url": "https://github.com/intikhab49"
    },
-   "dateModified": "2026-10-24",
+   "dateModified": "2026-10-25",
    "isPartOf": {
     "@id": "https://intikhab49.github.io/goalline/#website"
    },
@@ -101,8 +101,8 @@ footer{max-width:980px;margin:0 auto;padding:18px 22px 40px;border-top:1px solid
 <main>
 <p class="crumbs"><a href="https://intikhab49.github.io/goalline/">goalline</a> / Commands</p>
 <h1>goalline command reference</h1>
-<p class="lead">Every command and option of goalline 0.13.0, exactly as <code>goalline help</code> prints it.</p>
-<pre><code>goalline 0.13.0: goal-line technology for your tests. Signed receipts that a check ran on this
+<p class="lead">Every command and option of goalline 0.13.1, exactly as <code>goalline help</code> prints it.</p>
+<pre><code>goalline 0.13.1: goal-line technology for your tests. Signed receipts that a check ran on this
 exact code, and checks that catch a coding agent moving the goalposts. (Its old name, receipts, still works.)
 
   goalline run --gate &lt;name&gt; [options] -- &lt;command&gt;
@@ -126,7 +126,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
                             matters. Repeatable. In --rules, &quot;inputs&quot; names the gates that need each
       --clock-ttl &lt;time&gt;    when the project&#x27;s code reads the real clock (Date.now(), new Date()) in a
                             Jest, Vitest or node --test run, its receipt counts until the next midnight;
-                            this sets another time instead (12h, 7d, or 0: never). Fake timers don&#x27;t count
+                            this sets another time instead (12h, 7d, or 0: never). Fake timers count
+                            while their time came from the real clock, not once set to a fixed time
       --no-clock            don&#x27;t watch the clock
 
   goalline verify [--require a,b,browser:2] [--idle browser] [--input db=pg] [--json]
@@ -188,7 +189,7 @@ goalpost and prove-red exit 2 when they flag something. Receipts live in ~/.rece
 
 </main>
 <footer>
-goalline 0.13.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.13.1 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
 Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>

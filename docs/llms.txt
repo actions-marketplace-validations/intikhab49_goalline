@@ -2,13 +2,13 @@
 
 > Free, open source CLI and GitHub Action that catches AI coding agents editing tests to pass. It replays the old version of every test a change edited against the new code, so a moved expectation shows up with its exact old and new values. It also keeps signed receipts for every check, so CI can skip what the same code already passed.
 
-- Run: `npx github:intikhab49/goalline <command>` or `npm install -g github:intikhab49/goalline`. Node 20+ and git, zero dependencies, MIT. Version 0.13.0.
+- Run: `npx github:intikhab49/goalline <command>` or `npm install -g github:intikhab49/goalline`. Node 20+ and git, zero dependencies, MIT. Version 0.13.1.
 - `goalline goalpost --base origin/main -- npx jest {files}`: old tests on the new code. Verdicts: HELD, MOVED (with old and new values), BROKE, CRASHED (not judged), EMPTY, UNKNOWN. Exits 2 when something is flagged.
 - `goalline prove-red`: new tests must fail on the base code, or they test nothing.
 - `goalline guard --hook`: a Claude Code Stop hook that keeps the agent working until it restores a moved expectation or records why (`guard --ack ... --why ...`, ledger via `guard --report`).
 - `goalline history --from-git`: replays the last 200 merged pull requests and reports what goalpost would have flagged.
 - `goalline run --gate <name> --reuse`: signed receipts (in-toto test-result, DSSE, Ed25519) keyed by the git tree; skips a gate the same code already passed. `--input db=pg` adds the PostgreSQL schema to the receipt. `goalline verify --require a,b` says which gates are proven.
-- `goalline run` also watches the real clock in Jest, Vitest and node --test runs: a pass whose own tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`); fake timers don't count.
+- `goalline run` also watches the real clock in Jest, Vitest and node --test runs: a pass whose own tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`), as do reads of fake timers left at the real time; fake timers set to a fixed time don't count.
 - Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.
 - GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {files}`. Marketplace: https://github.com/marketplace/actions/goalline-catch-ai-edited-tests
 - Benchmark: on the last 200 merged PRs of pallets/click and pallets/jinja, 126 edited a test and 31 were flagged with their old and new values. Every flag was a deliberate change its PR explains, and 4 changed what users see without the changelog saying so. Every flag with its reason: https://intikhab49.github.io/goalline/benchmark/

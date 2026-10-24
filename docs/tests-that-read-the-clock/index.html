@@ -36,7 +36,7 @@
     "name": "Intikhab Azam",
     "url": "https://github.com/intikhab49"
    },
-   "dateModified": "2026-10-24",
+   "dateModified": "2026-10-25",
    "isPartOf": {
     "@id": "https://intikhab49.github.io/goalline/#website"
    },
@@ -112,10 +112,10 @@ goalline: unit PASSED · 4/4 passed · 2s · tree 47f3402 = commit fea9c46 · re
 <p><code>goalline verify</code> shows how long the pass counts. After midnight, <code>verify</code> and <code>--reuse</code> say why it no longer does: <code>it read the real clock (src/today.mjs:1), so its pass expired at 10-25 00:00</code>.</p>
 
 <h2>Whose read it is</h2>
-<ul><li>Every Node process of the gate loads a small preload (<code>NODE_OPTIONS=--require</code>) that watches <code>Date.now()</code>, <code>new Date()</code> with no arguments, and <code>Date()</code>.</li><li>A read counts when the first file behind it is yours: a test or source file in the repository, outside <code>node_modules</code>.</li><li>A date library reads the clock for the code that calls it, so <code>dayjs()</code>, <code>moment()</code>, luxon's <code>DateTime.now()</code> and date-fns count as your read.</li><li>A library's own read doesn't count: a test runner timing a test, a logger stamping a line.</li><li>Fake timers (<code>jest.useFakeTimers()</code>, <code>vi.useFakeTimers()</code>, <code>mock.timers</code>) replace <code>Date</code>, so their reads never reach the watch. A suite that freezes time keeps its receipts as long as the code doesn't change.</li></ul>
+<ul><li>Every Node process of the gate loads a small preload (<code>NODE_OPTIONS=--require</code>) that watches <code>Date.now()</code>, <code>new Date()</code> with no arguments, and <code>Date()</code>.</li><li>A read counts when the first file behind it is yours: a test or source file in the repository, outside <code>node_modules</code>.</li><li>A date library reads the clock for the code that calls it, so <code>dayjs()</code>, <code>moment()</code>, luxon's <code>DateTime.now()</code> and date-fns count as your read.</li><li>A library's own read doesn't count: a test runner timing a test, a logger stamping a line.</li><li>Fake timers replace <code>Date</code>, and <code>jest.useFakeTimers()</code> and <code>vi.useFakeTimers()</code> start at the real time unless they're given one. Their reads count while the fake clock's time came from the real one: it started within a day of it, or was set there since. Ticking it on keeps that, so a test that runs the clock 31 days on to expire a token still counts. The read shows as <code>test/session.test.ts:4 under fake timers with no fixed time</code>.</li><li>Once a test sets a fixed time (<code>jest.setSystemTime(new Date('2020-01-01'))</code>, <code>vi.setSystemTime(...)</code>, or <code>now:</code>), its reads stop counting, and <code>node --test</code>'s <code>mock.timers</code> starts at 0. A suite that sets a fixed time keeps its receipts as long as the code doesn't change.</li></ul>
 
 <h2>Where it works</h2>
-<p>Jest, including the vm contexts its test environments run in; Vitest, in its forks, threads and vmThreads pools; and <code>node --test</code>. Checked against Jest 30.5 and Vitest 5.0. The watch adds about 5 to 10 microseconds for each clock read it looks at, and Jest itself makes about 80 per test file.</p>
+<p>Jest, including the vm contexts its node and jsdom environments run in; Vitest, in its forks, threads and vmThreads pools; and <code>node --test</code>. Checked against Jest 29.7 and 30.5 and Vitest 5.0. The watch adds about 5 to 10 microseconds for each clock read it looks at, and Jest itself makes about 80 per test file.</p>
 
 <h2>Options</h2>
 <ul><li><code>--clock-ttl 12h</code> sets how long such a pass counts, instead of the next midnight; <code>--clock-ttl 0</code> never reuses it.</li><li><code>--no-clock</code> turns the watch off for a gate.</li><li><code>goalline prune</code> deletes passes that read the clock and expired: they can never prove anything again.</li></ul>
@@ -128,7 +128,7 @@ goalline: unit PASSED · 4/4 passed · 2s · tree 47f3402 = commit fea9c46 · re
 
 </main>
 <footer>
-goalline 0.13.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.13.1 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
 Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>

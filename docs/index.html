@@ -46,7 +46,7 @@
    "codeRepository": "https://github.com/intikhab49/goalline",
    "programmingLanguage": "JavaScript",
    "runtimePlatform": "Node.js 20+",
-   "version": "0.13.0",
+   "version": "0.13.1",
    "license": "https://opensource.org/licenses/MIT",
    "isAccessibleForFree": true,
    "keywords": "AI coding agents, test integrity, tests edited to pass, reward hacking, Claude Code hook, GitHub Action, regression testing, Jest, Vitest, pytest, test result caching, in-toto",
@@ -134,7 +134,7 @@
      "name": "Does goalline handle tests that depend on the current date?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "In Node, yes. During goalline run, it counts the reads of the real clock (Date.now(), new Date()) that your own tests and code make under Jest, Vitest or node --test, and fake timers don't count. A pass that read the clock counts only until the next midnight (or --clock-ttl), so a cached pass never stands in for another day."
+      "text": "In Node, yes. During goalline run, it counts the reads of the real clock (Date.now(), new Date()) that your own tests and code make under Jest, Vitest or node --test, including fake timers left at the real time; fake timers set to a fixed time don't count. A pass that read the clock counts only until the next midnight (or --clock-ttl), so a cached pass never stands in for another day."
      }
     },
     {
@@ -286,13 +286,13 @@ npx github:intikhab49/goalline goalpost --base origin/main -- npx jest {files}
 <h3>How do I stop Claude Code from editing tests to pass?</h3><p>Add <code>goalline guard --hook</code> as a Claude Code Stop hook. Before the agent may finish, the old tests it edited run against its work; a moved expectation sends it back to work until it restores the behaviour or records why the change is intended.</p>
 <h3>How do I check that a new test actually tests the change?</h3><p>Run it on the code before the change: it should fail there. <code>goalline prove-red</code> runs every test a change adds against the base code and flags any that already pass.</p>
 <h3>Can CI skip tests that already passed on the same code?</h3><p>Yes. <code>goalline run --reuse</code> keeps a signed receipt for every run, keyed by the git tree, and skips a gate that exact code already passed. With <code>--input db=pg</code>, a change to the database schema means it runs again, and a pass that read the real clock counts only until midnight.</p>
-<h3>Does goalline handle tests that depend on the current date?</h3><p>In Node, yes. During <code>goalline run</code>, it counts the reads of the real clock (<code>Date.now()</code>, <code>new Date()</code>) that your own tests and code make under Jest, Vitest or <code>node --test</code>, and fake timers don't count. A pass that read the clock counts only until the next midnight (or <code>--clock-ttl</code>), so a cached pass never stands in for another day.</p>
+<h3>Does goalline handle tests that depend on the current date?</h3><p>In Node, yes. During <code>goalline run</code>, it counts the reads of the real clock (<code>Date.now()</code>, <code>new Date()</code>) that your own tests and code make under Jest, Vitest or <code>node --test</code>, including fake timers left at the real time; fake timers set to a fixed time don't count. A pass that read the clock counts only until the next midnight (or <code>--clock-ttl</code>), so a cached pass never stands in for another day.</p>
 <h3>Does goalline catch hard-coded answers?</h3><p>No. It catches tests that were edited, not code that special-cases the test's inputs. Hard-coded answers still need hidden tests or mutation testing.</p>
 <h3>What does goalline cost, and what does it need?</h3><p>It is free and open source (MIT). It needs Node 20 or newer and git, and has zero dependencies: <code>npx github:intikhab49/goalline help</code> runs it without installing anything.</p>
 
 </main>
 <footer>
-goalline 0.13.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.13.1 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
 Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>

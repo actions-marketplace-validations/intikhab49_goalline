@@ -278,7 +278,7 @@ goalline verify --require unit,api --input db=pg
 
 ### The clock
 
-A test that reads the real clock can pass today and fail tomorrow on the same code: a token that expires after 30 days, a report for "this month", a fixture date that is now in the past. The clock can't be hashed, since it changes every second, so goalline watches who reads it. During `goalline run`, every Node process of the gate counts the reads of `Date.now()`, `new Date()` and `Date()` made by your own code: your tests and source files, directly or through a date library such as dayjs, moment, luxon or date-fns. A test runner timing a test doesn't count, and fake timers (`jest.useFakeTimers()`, `vi.useFakeTimers()`, `mock.timers`) replace `Date`, so their reads never reach the watch. It works in Jest's test environments, in Vitest's forks, threads and vmThreads pools, and in `node --test`.
+A test that reads the real clock can pass today and fail tomorrow on the same code: a token that expires after 30 days, a report for "this month", a fixture date that is now in the past. The clock can't be hashed, since it changes every second, so goalline watches who reads it. During `goalline run`, every Node process of the gate counts the reads of `Date.now()`, `new Date()` and `Date()` made by your own code: your tests and source files, directly or through a date library such as dayjs, moment, luxon or date-fns. A test runner timing a test doesn't count. Fake timers count while their time came from the real clock: `jest.useFakeTimers()` and `vi.useFakeTimers()` start at the real time unless they're given one, so a test that reads them still depends on the day it runs. Once a test sets a fixed time (`jest.setSystemTime(new Date('2020-01-01'))`, `vi.setSystemTime(...)` or `now:`), its reads don't count, and `node --test`'s `mock.timers` starts at 0. It works in Jest's test environments (node and jsdom), in Vitest's forks, threads and vmThreads pools, and in `node --test`.
 
 A pass that read the clock counts until the next midnight, local time:
 
@@ -286,7 +286,7 @@ A pass that read the clock counts until the next midnight, local time:
 goalline: unit PASSED · 4/4 passed · 2s · tree 47f3402 = commit fea9c46 · reads the real clock (2 read(s), e.g. src/today.mjs:1): counts until 10-25 00:00
 ```
 
-After that, `verify` and `--reuse` say why it no longer counts (`it read the real clock (src/today.mjs:1), so its pass expired at 10-25 00:00`), and `prune` deletes it. `--clock-ttl 12h` sets another time (`0`: never reuse such a pass), and `--no-clock` turns the watch off. A suite that freezes time keeps its receipts as long as the code doesn't change.
+After that, `verify` and `--reuse` say why it no longer counts (`it read the real clock (src/today.mjs:1), so its pass expired at 10-25 00:00`), and `prune` deletes it. `--clock-ttl 12h` sets another time (`0`: never reuse such a pass), and `--no-clock` turns the watch off. A read of fake timers left at the real time shows as `test/session.test.ts:4 under fake timers with no fixed time`. A suite that sets a fixed time keeps its receipts as long as the code doesn't change.
 
 ## What a receipt is
 
@@ -352,7 +352,7 @@ Yes. `goalline run --reuse` keeps a signed receipt for every run, keyed by the g
 
 ### Does goalline handle tests that depend on the current date?
 
-In Node, yes. During `goalline run`, it counts the reads of the real clock (`Date.now()`, `new Date()`) that your own tests and code make under Jest, Vitest or `node --test`, and fake timers don't count. A pass that read the clock counts only until the next midnight (or `--clock-ttl`), so a cached pass never stands in for another day.
+In Node, yes. During `goalline run`, it counts the reads of the real clock (`Date.now()`, `new Date()`) that your own tests and code make under Jest, Vitest or `node --test`, including fake timers left at the real time; fake timers set to a fixed time don't count. A pass that read the clock counts only until the next midnight (or `--clock-ttl`), so a cached pass never stands in for another day.
 
 ### Does goalline catch hard-coded answers?
 

@@ -417,9 +417,9 @@ FAQ = [
      "and a pass that read the real clock counts only until midnight."),
     ("Does goalline handle tests that depend on the current date?",
      "In Node, yes. During `goalline run`, it counts the reads of the real clock (`Date.now()`, `new Date()`) that "
-     "your own tests and code make under Jest, Vitest or `node --test`, and fake timers don't count. A pass that "
-     "read the clock counts only until the next midnight (or `--clock-ttl`), so a cached pass never stands in for "
-     "another day."),
+     "your own tests and code make under Jest, Vitest or `node --test`, including fake timers left at the real time; "
+     "fake timers set to a fixed time don't count. A pass that read the clock counts only until the next midnight "
+     "(or `--clock-ttl`), so a cached pass never stands in for another day."),
     ("Does goalline catch hard-coded answers?",
      "No. It catches tests that were edited, not code that special-cases the test's inputs. Hard-coded answers "
      "still need hidden tests or mutation testing."),
@@ -736,11 +736,17 @@ def clock_page() -> tuple[str, str]:
      "A date library reads the clock for the code that calls it, so `dayjs()`, `moment()`, luxon's "
      "`DateTime.now()` and date-fns count as your read.",
      "A library's own read doesn't count: a test runner timing a test, a logger stamping a line.",
-     "Fake timers (`jest.useFakeTimers()`, `vi.useFakeTimers()`, `mock.timers`) replace `Date`, so their reads "
-     "never reach the watch. A suite that freezes time keeps its receipts as long as the code doesn't change."])}
+     "Fake timers replace `Date`, and `jest.useFakeTimers()` and `vi.useFakeTimers()` start at the real time "
+     "unless they're given one. Their reads count while the fake clock's time came from the real one: it "
+     "started within a day of it, or was set there since. Ticking it on keeps that, so a test that runs the "
+     "clock 31 days on to expire a token still counts. The read shows as `test/session.test.ts:4 under fake "
+     "timers with no fixed time`.",
+     "Once a test sets a fixed time (`jest.setSystemTime(new Date('2020-01-01'))`, `vi.setSystemTime(...)`, "
+     "or `now:`), its reads stop counting, and `node --test`'s `mock.timers` starts at 0. A suite that sets "
+     "a fixed time keeps its receipts as long as the code doesn't change."])}
 <h2>Where it works</h2>
-{p("Jest, including the vm contexts its test environments run in; Vitest, in its forks, threads and vmThreads "
-   "pools; and `node --test`. Checked against Jest 30.5 and Vitest 5.0. The watch adds about 5 to 10 "
+{p("Jest, including the vm contexts its node and jsdom environments run in; Vitest, in its forks, threads and "
+   "vmThreads pools; and `node --test`. Checked against Jest 29.7 and 30.5 and Vitest 5.0. The watch adds about 5 to 10 "
    "microseconds for each clock read it looks at, and Jest itself makes about 80 per test file.")}
 <h2>Options</h2>
 {ul(["`--clock-ttl 12h` sets how long such a pass counts, instead of the next midnight; `--clock-ttl 0` never "
@@ -858,8 +864,8 @@ def llms(help_text: str) -> tuple[str, str]:
              "by the git tree; skips a gate the same code already passed. `--input db=pg` adds the PostgreSQL "
              "schema to the receipt. `goalline verify --require a,b` says which gates are proven.",
              "- `goalline run` also watches the real clock in Jest, Vitest and node --test runs: a pass whose own "
-             "tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`); fake "
-             "timers don't count.",
+             "tests or code read `Date.now()` or `new Date()` counts until the next midnight (`--clock-ttl`), as do "
+             "reads of fake timers left at the real time; fake timers set to a fixed time don't count.",
              "- Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.",
              f"- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {{files}}`. Marketplace: {MARKET}",
              f"- Benchmark: on the last 200 merged PRs of pallets/click and pallets/jinja, {TOTAL['edited']} edited a "

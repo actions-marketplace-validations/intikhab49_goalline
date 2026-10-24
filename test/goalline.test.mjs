@@ -278,12 +278,101 @@ const CLOCK_FILES = {
     '});',
     '',
   ].join('\n'),
+  // The parts of sinon's fake timers the watch relies on: withGlobal(global).install() puts a fake
+  // Date on the global, built on its own Date (a class, as sinon 11+ makes it) or not (a function, as
+  // sinon 10 makes it for Jest 29), whose clock ticks, is set and is reset. bundled-timers is a copy
+  // as a runner bundles one (Vitest), which require never shows as sinon's.
+  'node_modules/bundled-timers/package.json': '{ "name": "bundled-timers", "main": "index.js" }\n',
+  'node_modules/bundled-timers/index.js': [
+    'exports.withGlobal = (global) => ({',
+    "  install({ now, style = 'class' }) {",
+    '    const NativeDate = global.Date;',
+    '    const start = now;',
+    '    const clock = { now };',
+    "    if (style === 'class') {",
+    '      class ClockDate extends NativeDate {',
+    '        static clock;',
+    '        constructor(...args) {',
+    '          if (args.length === 0) super(ClockDate.clock.now);',
+    '          else super(...args);',
+    '        }',
+    '      }',
+    '      ClockDate.isFake = true;',
+    '      ClockDate.now = function now() { return ClockDate.clock.now; };',
+    '      clock.Date = new Proxy(ClockDate, { apply: () => new NativeDate(ClockDate.clock.now).toString() });',
+    '    } else {',
+    '      const ClockDate = function ClockDate(...args) {',
+    '        if (!(this instanceof ClockDate)) return new NativeDate(ClockDate.clock.now).toString();',
+    '        return args.length === 0 ? new NativeDate(ClockDate.clock.now) : new NativeDate(...args);',
+    '      };',
+    '      ClockDate.prototype = NativeDate.prototype;',
+    '      ClockDate.now = function now() { return ClockDate.clock.now; };',
+    '      ClockDate.isFake = true;',
+    '      clock.Date = ClockDate;',
+    '    }',
+    '    clock.Date.clock = clock;',
+    '    clock.tick = (ms) => { clock.now += ms; };',
+    '    clock.setSystemTime = (t) => { clock.now = t; };',
+    '    clock.reset = () => { clock.now = start; };',
+    '    clock._Date = global.Date;',
+    '    global.Date = clock.Date;',
+    '    clock.uninstall = () => { global.Date = clock._Date; };',
+    '    return clock;',
+    '  },',
+    '});',
+    'exports.createClock = () => {};',
+    '',
+  ].join('\n'),
+  'node_modules/@sinonjs/fake-timers/package.json': '{ "name": "@sinonjs/fake-timers", "main": "src/fake-timers-src.js" }\n',
+  'node_modules/@sinonjs/fake-timers/src/fake-timers-src.js': "exports.withGlobal = require('bundled-timers').withGlobal;\nexports.createClock = () => {};\n",
+  // Jest 29's (a function) and Jest 30's (a class), then Vitest's. A clock that started at the real
+  // time counts, ticked on too; set to a fixed one it doesn't, until it is reset to its start.
+  'test/faked.test.mjs': [
+    "import FakeTimers from '@sinonjs/fake-timers';",
+    "import bundled from 'bundled-timers';",
+    'const kinds = [',
+    "  (now) => FakeTimers.withGlobal(globalThis).install({ now, style: 'function' }),",
+    "  (now) => FakeTimers.withGlobal(globalThis).install({ now, style: 'class' }),",
+    "  (now) => bundled.withGlobal(globalThis).install({ now, style: 'class' }),",
+    '];',
+    'const realTime = () => Math.round(performance.timeOrigin + performance.now());',
+    "const fixed = Date.parse('2020-01-01T00:00:00Z');",
+    "test('fake clocks', () => {",
+    '  for (const install of kinds) {',
+    '    let clock = install(realTime());',
+    '    Date.now(); new Date(); Date(); new Date(5);',
+    '    clock.tick(40 * 86400000); Date.now();',
+    '    clock.setSystemTime(fixed); Date.now(); new Date(); Date();',
+    '    clock.reset(); Date.now();',
+    '    clock.uninstall();',
+    '    clock = install(fixed);',
+    "    if (Date.now() !== fixed || new Date().getTime() !== fixed || typeof Date() !== 'string') throw new Error('not fake');",
+    '    clock.uninstall();',
+    '  }',
+    '});',
+    '',
+  ].join('\n'),
+  // node:test's own fake clock reads Date's property as it is: it must still work under the watch.
+  'test/mocked.test.mjs': [
+    "import { test, mock } from 'node:test';",
+    "import assert from 'node:assert/strict';",
+    "test('mock.timers', () => {",
+    "  mock.timers.enable({ apis: ['Date'], now: 0 });",
+    '  try {',
+    '    assert.equal(Date.now(), 0);',
+    '    assert.equal(new Date().getTime(), 0);',
+    '  } finally {',
+    '    mock.timers.reset();',
+    '  }',
+    '});',
+    '',
+  ].join('\n'),
 };
 // The newest receipt's clock record: receipt file names start with the time they were made.
 const newest = (home) => receiptFiles(home).sort((a, b) => path.basename(a).localeCompare(path.basename(b))).at(-1);
 const clockOf = (home) => statementOf(newest(home)).predicate.configuration[0].annotations.clock;
 
-test('clock: a pass that read the real clock counts until midnight (or --clock-ttl); fake clocks and libraries timing themselves do not count', () => {
+test('clock: a pass that read the real clock counts until midnight (or --clock-ttl), as does one whose fake clock started at the real time; fixed fake clocks and libraries timing themselves do not count', () => {
   const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
   const rules = path.join(fs.mkdtempSync(path.join(TMP, 'receipts-rules-')), 'rules.json');
   fs.writeFileSync(rules, JSON.stringify({ ignore: ['**/*.md'], areas: { src: ['src/**'], tests: ['test/**'] }, gates: { '*': ['src', 'tests'] } }));
@@ -319,6 +408,17 @@ test('clock: a pass that read the real clock counts until midnight (or --clock-t
   r = gate('dayjs', 'test/dayjs.test.mjs');
   assert.deepEqual(clockOf(home).sites, [['test/dayjs.test.mjs:2', 1]], 'a date library reads the clock for its caller');
 
+  r = gate('faked', 'test/faked.test.mjs');
+  assert.equal(r.code, 0, r.all);
+  const F = ' under fake timers with no fixed time';
+  assert.deepEqual(clockOf(home).sites, [[`test/faked.test.mjs:13${F}`, 9], [`test/faked.test.mjs:14${F}`, 3], [`test/faked.test.mjs:16${F}`, 3]]);
+  assert.match(r.err, /faked PASSED · .* · reads the real clock \(15 read\(s\), e\.g\. test\/faked\.test\.mjs:13 under fake timers with no fixed time\)/);
+
+  // Without the variable that makes a node --test run inside this one report to it instead.
+  r = cliEnv({ GOALLINE_HOME: home, NODE_TEST_CONTEXT: undefined }, dir, 'run', '--gate', 'mocked', '--no-machine', '--', 'node', '--test', 'test/mocked.test.mjs');
+  assert.equal(r.code, 0, r.all);
+  assert.deepEqual(clockOf(home), { watched: true, reads: 0, sites: [] });
+
   r = gate('today', 'test/stamp.test.mjs', '--clock-ttl', '0');
   assert.equal(r.code, 0, r.all);
   v = verify('today');
@@ -341,7 +441,8 @@ test("clock: Jest's vm contexts and worker threads are watched; only Node test r
     'src/print.mjs': "console.log(new Date().toISOString());\n",
     // A Jest-style environment: the test runs in a vm context whose stacks print through source
     // maps (here: 100 lines on), then the process reads more than the watch follows, and a worker
-    // thread reads too. A file outside the repository, and a fake clock, don't count.
+    // thread reads too. A file outside the repository, and a fake clock, don't count. In jsdom's
+    // kind of context (an object made the global), a fake clock that started at the real time does.
     'test/contexts.cjs': [
       "const vm = require('vm');",
       "const path = require('path');",
@@ -353,6 +454,8 @@ test("clock: Jest's vm contexts and worker threads are watched; only Node test r
       "  vm.runInContext('Error.prepareStackTrace = (e, cs) => [String(e), ...cs.map((c) => `    at ${c.getFileName()}:${c.getLineNumber() + 100}:1`)].join(\"\\\\n\"); Date.now();', context, { filename: env });",
       "  vm.runInContext('Date.now();', context, { filename: path.join(__dirname, '..', '..', 'elsewhere.js') });",
       "  vm.runInContext('Date = class extends Date { static now() { return 0; } }; Date.now();', context, { filename: env });",
+      '  const sandboxed = vm.createContext({ document: {} });',
+      '  vm.runInContext(`class F extends Date { static clock; constructor(...a) { super(...(a.length ? a : [F.clock.now])); } } F.isFake = true; F.now = function now() { return F.clock.now; }; F.clock = { now: ${Math.round(performance.timeOrigin + performance.now())} }; Date = F; Date.now(); new Date();`, sandboxed, { filename: env });',
       '  new Worker(__filename);',
       '  for (let i = 0; i < 1005; i++) Date.now();',
       '} else {',
@@ -378,8 +481,9 @@ test("clock: Jest's vm contexts and worker threads are watched; only Node test r
   const seen = readClock(clock);
   assert.ok(!fs.existsSync(clock.dir));
   const sites = Object.fromEntries(seen.flatMap((s) => s.sites));
-  assert.deepEqual(sites, { 'test/env.test.js:1': 3, 'test/env.test.js:101': 1, 'test/contexts.cjs:12': 996, 'test/contexts.cjs:14': 1 }, JSON.stringify(seen));
-  assert.equal(seen.reduce((n, s) => n + s.contexts, 0), 1);
+  const F = ' under fake timers with no fixed time';
+  assert.deepEqual(sites, { 'test/env.test.js:1': 3, 'test/env.test.js:101': 1, [`test/env.test.js:1${F}`]: 2, 'test/contexts.cjs:14': 994, 'test/contexts.cjs:16': 1 }, JSON.stringify(seen));
+  assert.equal(seen.reduce((n, s) => n + s.contexts, 0), 2);
   assert.ok(seen.some((s) => s.capped && s.reads === 1000), 'the watch stops following after 1000 reads');
 
   const gate = (name, ...cmd) => cliIn(home, dir, 'run', '--gate', name, '--no-machine', ...cmd);

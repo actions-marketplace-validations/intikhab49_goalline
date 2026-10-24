@@ -34,7 +34,8 @@ exact code, and checks that catch a coding agent moving the goalposts. (Its old 
                             matters. Repeatable. In --rules, "inputs" names the gates that need each
       --clock-ttl <time>    when the project's code reads the real clock (Date.now(), new Date()) in a
                             Jest, Vitest or node --test run, its receipt counts until the next midnight;
-                            this sets another time instead (12h, 7d, or 0: never). Fake timers don't count
+                            this sets another time instead (12h, 7d, or 0: never). Fake timers count
+                            while their time came from the real clock, not once set to a fixed time
       --no-clock            don't watch the clock
 
   goalline verify [--require a,b,browser:2] [--idle browser] [--input db=pg] [--json]

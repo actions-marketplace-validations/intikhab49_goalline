@@ -1,6 +1,7 @@
 // The clock: goalline's side of the watch in clock-preload.cjs. A gate whose own code read the real
 // clock passed at that moment, and the same code can fail on another day, so its receipt counts
-// until the next midnight, or for --clock-ttl. Reads under fake timers never reach the watch.
+// until the next midnight, or for --clock-ttl. So do fake timers' reads while their time came from the
+// real clock; set to a fixed time, they don't count.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
