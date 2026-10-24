@@ -99,6 +99,25 @@ test('a receipt verifies only for the exact code it ran on', () => {
   assert.equal(cli(dir, 'verify', '--require', 'unit').code, 0);
 });
 
+test('a same-size edit in the second git last wrote its index still changes the fingerprint', () => {
+  // git trusts a file's cached size and mtime only when the file is older than the index; in the
+  // index's own second it reads the file. Only size and whole-second mtime count here, on any OS.
+  const dir = repo();
+  git(dir, 'config', 'core.checkStat', 'minimal');
+  git(dir, 'config', 'core.trustctime', 'false');
+  assert.equal(runGate(dir).code, 0);
+  const file = path.join(dir, 'src/add.mjs');
+  const second = new Date('2026-01-01T00:00:00Z');
+  fs.utimesSync(file, second, second);
+  git(dir, 'update-index', '--refresh');
+  fs.utimesSync(path.join(dir, '.git', 'index'), second, second);
+  write(dir, 'src/add.mjs', ADD.replace('a + b', 'b + a'));
+  fs.utimesSync(file, second, second);
+  const v = cli(dir, 'verify', '--require', 'unit');
+  assert.equal(v.code, 1, v.all);
+  assert.match(v.out, /unit\s+MISSING/);
+});
+
 test("another test runner during the gate makes the run not idle; the gate's own processes and the tool's starters never count", async () => {
   const home = fs.mkdtempSync(path.join(TMP, 'receipts-home-'));
   const dir = repo();

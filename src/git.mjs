@@ -27,11 +27,18 @@ export function workingTree(repo) {
 }
 
 // The working directory's tree, built in a copy of the real index so git re-hashes only the
-// files that changed since that index was written.
+// files that changed since that index was written. The copy keeps the index's own mtime: git
+// re-reads a file whose cached stat looks unchanged only when it is no older than the index,
+// so a copy stamped now (as Linux copies are) hides a same-size edit made in the index's second.
 export function workdirTree(repo, realIndex) {
   const idx = tempIndex('wt');
   try {
-    if (fs.existsSync(realIndex)) fs.copyFileSync(realIndex, idx);
+    // Stat before copying: if the index is replaced in between, the copy only looks older.
+    const st = fs.statSync(realIndex, { throwIfNoEntry: false });
+    if (st) {
+      fs.copyFileSync(realIndex, idx);
+      fs.utimesSync(idx, st.atime, st.mtime);
+    }
     const env = { GIT_INDEX_FILE: idx };
     git(repo, ['add', '-A', '--', '.'], { env });
     return text(git(repo, ['write-tree'], { env }));
