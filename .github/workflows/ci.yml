@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet pytest
+      - run: node --test test/*.test.mjs
+        shell: bash
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: a repository whose change moves a test's expectation
+        run: bash test/action-fixture.sh "$RUNNER_TEMP/fixture"
+      - id: goalline
+        uses: ./
+        with:
+          repo: ${{ runner.temp }}/fixture
+          base: main
+          command: node ${{ github.workspace }}/test/fake-jest.mjs {files}
+          fail-on-flag: 'false'
+      - name: the action flagged it
+        run: test "${{ steps.goalline.outputs.flagged }}" = "true"

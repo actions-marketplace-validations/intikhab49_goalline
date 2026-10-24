@@ -12,7 +12,7 @@
 [![Runners](https://img.shields.io/badge/jest%20%C2%B7%20vitest%20%C2%B7%20pytest-per%20test-eb6834?style=for-the-badge)](#vitest-and-pytest)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-stop%20hook-24292f?style=for-the-badge&logo=anthropic&logoColor=white)](#stopping-an-agent-that-moved-a-goalpost)
 
-[Why](#why) · [Quick start](#quick-start) · [What it does](#what-it-does) · [Benchmark](#benchmark) · [How goalpost works](#how-goalpost-works) · [Commands](#commands) · [Limits](#limits)
+[Why](#why) · [Quick start](#quick-start) · [GitHub Action](#github-action) · [What it does](#what-it-does) · [Benchmark](#benchmark) · [How goalpost works](#how-goalpost-works) · [Commands](#commands) · [Limits](#limits)
 
 </div>
 
@@ -41,6 +41,38 @@ npx github:intikhab49/goalline goalpost --base origin/main -- npx jest {files}
 npm install -g github:intikhab49/goalline
 goalline help
 ```
+
+## GitHub Action
+
+Run goalpost on every pull request. Its card (what needs a look, with the old and new values) goes on the job's summary page.
+
+```yaml
+name: goalline
+on: pull_request
+jobs:
+  goalpost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - uses: intikhab49/goalline@v0
+        with:
+          command: npx jest {files}
+```
+
+| Input | Default | What it does |
+|---|---|---|
+| `command` | required | The test command, with `{files}` where the test files go: `npx jest {files}`, `npx vitest run {files}`, `python -m pytest {files}` |
+| `check` | `goalpost` | `goalpost` runs the old tests on the new code; `prove-red` runs the new tests on the old code |
+| `base` | the pull request's base branch | The ref to compare against |
+| `cwd` | the repository root | The folder the tests run in, for a monorepo |
+| `tests` | the runner's usual file names | Globs that say which files are tests |
+| `fail-on-flag` | `true` | Fail the step when something is flagged |
+
+Outputs: `flagged` (`true` or `false`) and `report` (the path of the Markdown card). The action fetches the history it needs, so the default shallow checkout is fine. For pytest, set up Python and install the project (`pip install -e .` and pytest) before the step.
 
 ## What it does
 

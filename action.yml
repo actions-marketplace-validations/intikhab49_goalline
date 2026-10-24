@@ -1,0 +1,58 @@
+name: 'goalline: catch AI-edited tests'
+description: 'Replays the old tests on the new code, so a test edited to pass shows up with its exact old and new values.'
+author: 'Intikhab Azam'
+branding:
+  icon: 'flag'
+  color: 'orange'
+
+inputs:
+  command:
+    description: 'The test command, with {files} where the test files go: npx jest {files}, npx vitest run {files}, python -m pytest {files}.'
+    required: true
+  check:
+    description: 'goalpost (the old tests on the new code) or prove-red (the new tests on the old code).'
+    required: false
+    default: 'goalpost'
+  base:
+    description: 'The ref to compare against. Default: origin/<the pull request base branch>, else origin/main.'
+    required: false
+    default: ''
+  cwd:
+    description: 'The folder the tests run in, inside the repository (for a monorepo).'
+    required: false
+    default: ''
+  tests:
+    description: 'Globs that say which files are tests, comma separated. Default: the usual names for the runner.'
+    required: false
+    default: ''
+  repo:
+    description: 'The repository to check. Default: the checked-out workspace.'
+    required: false
+    default: ''
+  fail-on-flag:
+    description: 'Fail the step when goalline flags something.'
+    required: false
+    default: 'true'
+
+outputs:
+  flagged:
+    description: 'true when goalline flagged something.'
+    value: ${{ steps.run.outputs.flagged }}
+  report:
+    description: 'Path to the Markdown summary, which is also added to the job summary.'
+    value: ${{ steps.run.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: run
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_CHECK: ${{ inputs.check }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_CWD: ${{ inputs.cwd }}
+        INPUT_TESTS: ${{ inputs.tests }}
+        INPUT_REPO: ${{ inputs.repo }}
+        INPUT_FAIL_ON_FLAG: ${{ inputs.fail-on-flag }}
+      run: bash "$GITHUB_ACTION_PATH/action/run.sh"
