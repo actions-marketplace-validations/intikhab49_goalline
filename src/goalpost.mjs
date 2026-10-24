@@ -153,6 +153,25 @@ function judge(c, run) {
   return passed ? { kind: 'HELD', note: `all ${passed} old test(s) still pass` } : { kind: 'EMPTY', note: 'no old tests ran' };
 }
 
+// The control: an old test that fails on the new code counts only if it passes on its own code,
+// run the same way here. One that fails there too says nothing about the change: the environment
+// drifted (another Python, a newer dependency) or the test is flaky. A file whose control could not
+// run keeps its verdict.
+export function applyControl(verdict, s) {
+  if (!s || s.fileLevel || !['MOVED', 'BROKE'].includes(verdict.kind)) return verdict;
+  if (verdict.kind === 'BROKE') {
+    if (s.status !== 'failed' || s.tests.length) return verdict;
+    return { kind: 'UNKNOWN', note: `the old file does not run on its own code here either: ${firstUsefulLine(s.message)}` };
+  }
+  const failedThere = new Set(s.tests.filter((t) => t.status === 'failed').map((t) => t.name));
+  const counted = (verdict.failing || []).filter((f) => !failedThere.has(f.name));
+  const dropped = (verdict.failing || []).length - counted.length;
+  if (!dropped) return verdict;
+  const why = `${dropped} fail on the old code here too (the environment or a flaky test), so they say nothing about this change`;
+  if (!counted.length) return { kind: 'UNKNOWN', note: `its failing old tests: ${why}` };
+  return { ...verdict, note: `${counted.length} of ${verdict.note.replace(/^\d+ of /, '')}; ${why}`, failing: counted };
+}
+
 // Added lines that can switch a test off without removing anything: an early return, a dead branch,
 // a skip, a focus or an expected failure, in JavaScript or Python. Those never count as low risk.
 const DISABLING =
@@ -317,6 +336,22 @@ export async function cmdGoalpost(opts, command) {
       for (const { c, t } of plans) {
         const v = judgeTransplant(c, third, t);
         if (v) c.verdict = { ...v, ...(c.verdict.typesOff ? { typesOff: c.verdict.typesOff } : {}) };
+      }
+    }
+
+    // The control (see applyControl): the failing old test files, run again on the old code.
+    const suspects = cands.filter((c) => c.verdict.kind === 'MOVED' || c.verdict.kind === 'BROKE');
+    if (suspects.length) {
+      const base = prepareScratch({ root: ctx.root, sha: ctx.mb, label: 'goalpost-control', depsFrom: ctx.depsFrom });
+      try {
+        console.error(`goalline: running the ${suspects.length} failing old test file(s) on the old code too, to rule out the environment...`);
+        const control = await runWithSetup({ opts, scratch: base.dir, cwdRel: ctx.cwdRel, db, env, quiet: opts.quiet }, () =>
+          runTests({ scratch: base.dir, cwdRel: ctx.cwdRel, files: suspects.map((c) => c.path), command, quiet: opts.quiet, env }),
+        );
+        for (const c of suspects) c.verdict = applyControl(c.verdict, control.suites.get(c.path));
+      } finally {
+        if (opts.keep) console.error(`goalline: kept the control copy at ${base.dir}`);
+        else removeScratch(base.dir);
       }
     }
 

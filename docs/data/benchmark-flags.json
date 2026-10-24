@@ -1,0 +1,52 @@
+{
+  "note": "Every flag from goalline history on the last 200 PRs merged into main (first-parent) of pallets/click (clone at 2247b35, 2026-10-04) and pallets/jinja (5ef7011, 2025-06-14), with the PR's own reason. Checked 2026-10-24 against each PR's text, its changelog lines and click's docs. label: intended | intended, not in the changelog | test plumbing.",
+  "repos": {
+    "pallets/click": {
+      "replayed": 200, "edited": 84, "needsALook": 19, "lowRisk": 2, "held": 63, "notJudged": 0, "machine": "about 3 minutes",
+      "env": "Python 3.11, pytest 9.0.2"
+    },
+    "pallets/jinja": {
+      "replayed": 200, "edited": 42, "needsALook": 10, "lowRisk": 0, "held": 29, "notJudged": 3, "machine": "about 2 minutes",
+      "env": "Python 3.11; 103 PRs with pytest 9.0.2 and MarkupSafe 3.0.4, the 97 from 2020-21 (their code imports markupsafe.soft_unicode and uses py.path pytest hooks) with pytest 6.2.5 and MarkupSafe 1.1.1",
+      "notJudgedWhy": {
+        "1525": "tests/test_debug.py: its failing old test fails on its own code on Python 3.11 too (tracebacks print differently)",
+        "1169": "tests/test_loader.py: 6 failing old tests fail on their own code here too",
+        "1233": "tests/test_idtracking.py: an old test crashes inside the new code before its expectations"
+      }
+    }
+  },
+  "flags": [
+    { "repo": "pallets/jinja", "pr": 1621, "title": "use `posixpath.join` when loading template names", "moved": "package template file names end in `foo/test.html`, not `foo\\test.html`", "why": "template names are joined with `/` on every OS now", "label": "intended", "note": "shows on Windows only" },
+    { "repo": "pallets/jinja", "pr": 1544, "title": "remove deprecated code", "moved": "overriding the legacy `resolve` no longer warns (`DID NOT WARN`)", "why": "the deprecated legacy code it warned about was removed", "label": "intended" },
+    { "repo": "pallets/jinja", "pr": 1393, "title": "deprecate legacy resolve mode", "moved": "overriding `resolve` raises a `DeprecationWarning`", "why": "the deprecation itself (jinja's tests turn warnings into errors)", "label": "intended" },
+    { "repo": "pallets/jinja", "pr": 1392, "title": "async support doesn't require patching", "moved": "the old test files import `jinja2.asyncsupport`, which is gone", "why": "the module was removed; async support is built in", "label": "intended" },
+    { "repo": "pallets/jinja", "pr": 1391, "title": "Markup and escape should be imported from markupsafe", "moved": "`jinja2.Markup` and `jinja2.escape` raise a `DeprecationWarning`", "why": "the re-exports are deprecated in favour of markupsafe", "label": "intended" },
+    { "repo": "pallets/jinja", "pr": 1389, "title": "unify/rename context function decorators", "moved": "`contextfunction` and its siblings raise a `DeprecationWarning`", "why": "renamed to `pass_context`, `pass_eval_context` and `pass_environment`", "label": "intended" },
+    { "repo": "pallets/jinja", "pr": 1383, "title": "add 'is filter' and 'is test' tests", "moved": "`no filter named 'f'` became `No filter named 'f'.` and `No filter named 'f' found.`", "why": "filters and tests share their code now; the new error text is in neither the PR text nor the changelog", "label": "intended, not in the changelog" },
+    { "repo": "pallets/jinja", "pr": 1243, "title": "deprecate 'autoescape' and 'with' extensions for removal in 3.1", "moved": "the `autoescape` and `with` extensions raise a `DeprecationWarning`", "why": "both are built in now", "label": "intended" },
+    { "repo": "pallets/jinja", "pr": 1136, "title": "Drop Python 2", "moved": "the undefined-variable warning `missing is undefined` became `'missing' is undefined`; old files import the removed `jinja2._compat`", "why": "Python 2 support removed and f-strings used everywhere; the new warning text is in neither the PR text nor the changelog", "label": "intended, not in the changelog" },
+    { "repo": "pallets/jinja", "pr": 1133, "title": "Revert \"Rename to Jinja\"", "moved": "the old test files import `jinja`", "why": "the package rename was reverted to `jinja2`", "label": "intended" },
+
+    { "repo": "pallets/click", "pr": 3877, "title": "Add `Parameter.spec` and deprecate `human_readable_name`", "moved": "`option 'my_option' is deprecated` became `The option '--my-option' is deprecated.`", "why": "messages name options as users type them; the changelog quotes the before and after", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3866, "title": "Deprecate parameter names that are: not a Python identifier, or a Python Keyword, or not lower-cased", "moved": "an option named `in` raises a `DeprecationWarning`", "why": "the deprecation itself", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3876, "title": "Merge stable into main", "moved": "the short help of `123 567 9. aaaa bbb` is `123 567...`, not `123 567 9.`", "why": "a period followed by a lowercase word no longer ends a sentence (\"Fix short help abbreviation\", in the changelog)", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3767, "title": "Refactor pager stream handling", "moved": "output through the null pager to a non-terminal stream loses its colour codes; an internal helper returns a different shape", "why": "pager streams unified; the PR's tests expect the colour change, but neither its text nor its changelog line mentions it", "label": "intended, not in the changelog" },
+    { "repo": "pallets/click", "pr": 3704, "title": "Deprecate `isolated_filesystem` and document its limits", "moved": "`CliRunner.isolated_filesystem` raises a `DeprecationWarning`", "why": "the deprecation itself", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3695, "title": "Mark clearly functions private status. Deprecated Python 2 utilities.", "moved": "`get_binary_stream`, `KeepOpenFile`, `LazyFile` and `make_default_short_help` raise a `DeprecationWarning`", "why": "Python 2 era utilities deprecated", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3678, "title": "Fix parsing when a parameter is named `help`", "moved": "`to_info_dict()` shows the help option under `_click_default_help`", "why": "the help option's internal name changed so a parameter named `help` works; in the changelog", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3563, "title": "Merge `stable` into `main` after `CHANGES` rST to Markdown conversion", "moved": "the old test file imports `click._compat.MAC`, which is gone", "why": "a private constant used only to skip a test was removed while fixing a test race", "label": "test plumbing" },
+    { "repo": "pallets/click", "pr": 3479, "title": "Merge stable into main", "moved": "case-insensitive `Choice` completion suggests `au`, not `Au`", "why": "completion goes through `normalize_choice()` now; the changelog mentions Enum completion, not the lowercased suggestions", "label": "intended, not in the changelog" },
+    { "repo": "pallets/click", "pr": 3391, "title": "Add capture mode to `CliRunner` and revert default `fileno` exposure", "moved": "`CliRunner` streams no longer have a `fileno()`", "why": "the revert in the title; a new capture mode brings it back", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3228, "title": "Add `NoSuchCommand` exception with suggestions for misspelled commands", "moved": "`No such option: --foo` became `No such option '--foo'.`, and `Did you mean --count?` became `Did you mean '--count'?`", "why": "error messages reformatted for consistency, as the PR says", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3126, "title": "Fix: Ensure fish completion handles multiline help strings correctly", "moved": "fish completion output escapes the newlines in help", "why": "the fix itself", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3363, "title": "Auto-detect `type=UNPROCESSED` when `flag_value` has non-basic types", "moved": "enum, class and int flag values arrive as objects, not strings", "why": "the point of the PR", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3239, "title": "Reconcile default value passing and default activation", "moved": "`default=True` with `flag_value=False` activates the flag: `Flag [y/N]` became `Flag [Y/n]`, and Enter gives `True`", "why": "what `default=True` means for flags was redefined", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3225, "title": "Fix callable ``flag_value`` being instantiated when used as a default", "moved": "a class used as `flag_value` arrives as the class, not an instance", "why": "the fix itself", "label": "intended" },
+    { "repo": "pallets/click", "pr": 2991, "title": "fix a race in `click.testing.StreamMixer`'s finalization, seen in a multi-threaded context", "moved": "the captured streams close when isolation ends, so reading them afterwards fails", "why": "the race fix (in the changelog); the PR moved the tests' checks inside the block", "label": "intended" },
+    { "repo": "pallets/click", "pr": 2956, "title": "Fix reconciliation of envvar with `default`, `flag_value` and `type` parameters for flag options", "moved": "flag values from env vars and defaults (`upper` where it was `False`)", "why": "the fixes the title lists", "label": "intended" },
+    { "repo": "pallets/click", "pr": 2934, "title": "Raise an exception on end of input in CliRunner", "moved": "prompts in `CliRunner` abort at the end of input (`Aborted!`) instead of reading empty strings", "why": "match a real terminal, where the end of input raises", "label": "intended" },
+    { "repo": "pallets/click", "pr": 2796, "title": "Expand `Choice` token normalization + make generic", "moved": "custom `ParamType.get_metavar()` is called with `ctx`; `Choice` info dicts changed", "why": "`Choice` made generic; the new `ctx` argument is in click's 'support multiple versions' guide", "label": "intended" },
+    { "repo": "pallets/click", "pr": 3473, "title": "Add help parameter to arguments", "moved": "`to_info_dict()` gains `help` for arguments (lines only added)", "why": "the feature itself", "label": "intended", "note": "low risk" },
+    { "repo": "pallets/click", "pr": 3371, "title": "`ParamType` and other typing improvements", "moved": "importing click also imports `abc` now (lines only added to the allowed list)", "why": "`ParamType` became an abstract base class", "label": "intended", "note": "low risk" }
+  ]
+}

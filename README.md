@@ -89,25 +89,36 @@ Jest, Vitest and pytest are judged test by test; any other command is judged fil
 
 <img src="docs/charts/click-history.png" alt="goalline on pallets/click, the last 200 merged PRs: 84 edited an existing test, 63 kept every old test passing, 19 were flagged with their old and new values, 2 were low risk, 0 could not be judged." width="100%">
 
-`goalline history` on [pallets/click](https://github.com/pallets/click): its last 200 merged PRs (up to 2026-10-04), each judged on its merge commit, with pytest 9.0.2 on Python 3.11.
+`goalline history` on the last 200 pull requests merged into `main` of [pallets/click](https://github.com/pallets/click) and [pallets/jinja](https://github.com/pallets/jinja), each judged on its merge commit against its first parent.
 
-| | PRs |
-|---|---|
-| Merged PRs replayed | 200 |
-| Edited an existing test (a "test changed" alarm fires on every one) | 84 |
-| Kept every old test passing | **63** |
-| Flagged: an old expectation moved, shown with its old and new values | **19** |
-| Low risk: the old test fails, but the PR only added lines to it | 2 |
-| Could not be judged | 0 |
-| Machine time | about 2 minutes |
+| | click | jinja |
+|---|---|---|
+| Merged PRs replayed | 200 | 200 |
+| Edited an existing test (a "test changed" alarm fires on every one) | 84 | 42 |
+| Needs a look: an old expectation moved, shown with its old and new values | **19** | **10** |
+| Low risk: the old test fails, but the PR only added lines to it | 2 | 0 |
+| Kept every old test passing | 63 | 29 |
+| Could not be judged | 0 | 3 |
+| Machine time | about 3 minutes | about 2 minutes |
 
-A flag is not a bug report. click's maintainers changed behaviour on purpose and updated the tests to match: in [#3239](https://github.com/pallets/click/pull/3239), a `--flag` option with `prompt=True, default=True, flag_value=False` went from `Flag [y/N]:` (Enter gives `False`) to `Flag [Y/n]:` (Enter gives `True`), with three lines of a test table edited to match, and all 11 CI checks green. That is the point: a reviewer sees the change and its values, not just a green check. Judged as first opened as well (`--first-heads`, 199 PRs), no PR edited a test to hide a change that review then took back.
+Every one of the 31 flags was a deliberate change that its PR explains in one line: [every flag, with its reason](https://intikhab49.github.io/goalline/benchmark/). 4 of them changed what users see without the changelog saying so:
 
-To reproduce it, clone click, install it and pytest into a virtualenv, activate it, and run:
+- jinja [#1383](https://github.com/pallets/jinja/pull/1383): `no filter named 'f'` became `No filter named 'f'.` and `No filter named 'f' found.`.
+- jinja [#1136](https://github.com/pallets/jinja/pull/1136): the undefined-variable warning `missing is undefined` became `'missing' is undefined`; old files import the removed `jinja2._compat`.
+- click [#3767](https://github.com/pallets/click/pull/3767): output through the null pager to a non-terminal stream loses its colour codes; an internal helper returns a different shape.
+- click [#3479](https://github.com/pallets/click/pull/3479): case-insensitive `Choice` completion suggests `au`, not `Au`.
+
+A flag is not a bug report. In [#3239](https://github.com/pallets/click/pull/3239), a click `--flag` option with `prompt=True, default=True, flag_value=False` went from `Flag [y/N]:` (Enter gives `False`) to `Flag [Y/n]:` (Enter gives `True`), with three lines of a test table edited to match and all 11 CI checks green. It was intended. That is the point: a reviewer sees the change and its values, not just a green check.
+
+jinja also found two sources of false flags in goalline itself, fixed in 0.13.0: a source module named `tests.py` and example scripts taken for tests (test files now come from the project's pytest config), and old tests that fail on their own code on today's Python read as moved expectations (a failing old test now counts only if it passes on the old code). Re-run with both fixes, click's numbers did not change.
+
+To reproduce it, clone the project, install it, pytest and its test dependencies into a virtualenv, activate it, and run:
 
 ```sh
 npx github:intikhab49/goalline history --from-git --limit 200 -- python -m pytest {files}
 ```
+
+jinja's PRs from 2020 and early 2021 need the packages of that time (pytest 6.2.5, MarkupSafe 1.1.1): run those with a second virtualenv and `--only <PR numbers>` into the same `--out` folder.
 
 ## How goalpost works
 
@@ -130,6 +141,8 @@ flowchart LR
 ```
 
 The scratch copy is a clean export of the head commit, using your checkout's installed packages without copying them. Nothing in your checkout changes.
+
+An old test that fails on the new code counts only if it passes on its own code. goalpost runs the failing old test files on the old code too, the same way. A test that fails there as well (a Python or a dependency that changed since, a flaky test) says nothing about the change, so it isn't counted, and a file with nothing else failing is not judged.
 
 ## Commands
 
@@ -180,7 +193,7 @@ A CRASHED file that was edited (or renamed and edited) then gets the **assertion
 
 **Vitest** works as Jest does: `goalline` adds `--run` (never the watch mode) and Vitest's JSON reporter next to its usual output, and reads Vitest's wording (`expected 6 to be 5` becomes `Expected 5, received 6`). The assertion transplant works the same way. There is no type-check retry, because Vitest does not type-check.
 
-**pytest** writes JUnit XML (`--junitxml`), and a test is named as in its node id after the file: `TestCart::test_total`, `test_add[2-3-5]`. The old and new values are pytest's own words, `assert 6 == 5 (where 6 = add(2, 3))`, since only the test knows which side is the expectation. One old file that no longer imports is BROKE without stopping the other files (`--continue-on-collection-errors`). CRASHED is a `TypeError`, `AttributeError`, `NameError` or `KeyError` raised in project code, not in a test file or `conftest.py`, or an old call the new signature refuses (a missing argument, an unexpected keyword): Python raises that one at the call, in the test, before the new code runs. Test files are `test_*.py`, `*_test.py` and `tests.py` by default (`--tests` to change), and prove-red brings a new `conftest.py` along with the new tests. The transplant is not built for pytest yet.
+**pytest** writes JUnit XML (`--junitxml`), and a test is named as in its node id after the file: `TestCart::test_total`, `test_add[2-3-5]`. The old and new values are pytest's own words, `assert 6 == 5 (where 6 = add(2, 3))`, since only the test knows which side is the expectation. One old file that no longer imports is BROKE without stopping the other files (`--continue-on-collection-errors`). CRASHED is a `TypeError`, `AttributeError`, `NameError` or `KeyError` raised in project code, not in a test file or `conftest.py`, or an old call the new signature refuses (a missing argument, an unexpected keyword): Python raises that one at the call, in the test, before the new code runs. Test files are the ones pytest itself would collect: `python_files` under `testpaths` from the project's pytest config at the base commit, else `test_*.py` and `*_test.py` (`--tests` to change). pytest runs any file it is given by name, so a source module named `tests.py` or a script in `examples/` is never handed to it as a test. prove-red brings a new `conftest.py` along with the new tests. The transplant is not built for pytest yet.
 
 Run pytest with the Python that has the project's packages: activate the virtualenv first, or give its python by full path. `uv run pytest {files}` gives the scratch copy an environment of its own. The scratch copy's folder (and its `src` folder, when that holds Python code) goes first on `PYTHONPATH`, so a package installed with `pip install -e .` still tests the scratch copy, never your checkout.
 
@@ -315,7 +328,7 @@ Because CI runs the new tests on the new code. When a change edits the code and 
 
 ### Is a flagged pull request a bug?
 
-No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved so the reviewer can confirm it was intended.
+No. A flag means a person should look. On the last 200 merged PRs of pallets/click and pallets/jinja, all 31 flags were deliberate changes, and 4 of them changed what users see without the changelog saying so. goalline shows exactly what moved, so the reviewer can confirm it was intended.
 
 ### Does goalline use AI or an LLM?
 

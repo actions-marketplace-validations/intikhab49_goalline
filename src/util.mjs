@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '0.12.0';
+export const VERSION = '0.13.0';
 export const isWin = process.platform === 'win32';
 
 // The receipts it signs live in ~/.receipts. RECEIPTS_HOME is the old name of GOALLINE_HOME.

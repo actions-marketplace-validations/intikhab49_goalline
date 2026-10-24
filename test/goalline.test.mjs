@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readClock, startClock } from '../src/clock.mjs';
 import { inputProblems, libpqUrl, normalizePgDump, parseInputs, redact } from '../src/inputs.mjs';
 import { failedTestNames, parseSummary, readJestJson, readJunitXml, testSignals, testTitles } from '../src/parse.mjs';
-import { jsCrashSite, pyCrashSite, pySummary } from '../src/runners.mjs';
+import { jsCrashSite, pyCrashSite, pySummary, pytestGlobs } from '../src/runners.mjs';
 import { safeRemoveTree, scratchRoot } from '../src/scratch.mjs';
 import { findTests, transplant } from '../src/transplant.mjs';
 import { failureSummary, globToRegExp, relativize } from '../src/util.mjs';
@@ -1075,6 +1075,37 @@ test('guard reads the Claude Code hook event, and stops blocking a stuck agent a
   assert.match(r.stderr, /WARNING: stopping with 1 unacknowledged changed test expectation\(s\), after blocking 1 times/);
 });
 
+test('goalpost: an old test that fails on its own code too says nothing about the change, so it is not counted', () => {
+  // The second test needs a service this machine lacks: it fails on the old code and the new alike.
+  const ENV_TEST = (n, note = '') =>
+    [
+      `${note}import { add } from '../src/add.mjs';`,
+      `test('adds two numbers', () => { const got = add(2, 3); if (got !== ${n}) throw new Error(\`Expected: ${n}\\nReceived: \${got}\`); });`,
+      "test('reaches the service', () => { if (!process.env.GOALLINE_NO_SUCH_SERVICE) throw new Error('Expected: a service\\nReceived: none'); });",
+      '',
+    ].join('\n');
+  let dir = repo({ 'src/add.mjs': ADD, 'test/add.test.mjs': ENV_TEST(5) });
+  onBranch(dir, 'moved', { 'src/add.mjs': 'export const add = (a, b) => a + b + 1;\n', 'test/add.test.mjs': ENV_TEST(6) });
+  let r = goalpost(dir);
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.out, /MOVED\s+test\/add\.test\.mjs\n\s+1 of 2 old tests fail on the new code; 1 fail on the old code here too \(the environment or a flaky test\)/);
+  assert.match(r.out, /✗ adds two numbers: Expected 5, received 6/);
+  assert.doesNotMatch(r.out, /✗ reaches the service/);
+
+  // Only the test that fails everywhere: not judged, rather than moved.
+  dir = repo({ 'src/add.mjs': ADD, 'test/add.test.mjs': ENV_TEST(5) });
+  onBranch(dir, 'note', { 'test/add.test.mjs': ENV_TEST(5, '// the service runs in CI\n') });
+  r = goalpost(dir);
+  assert.match(r.out, /UNKNOWN\s+test\/add\.test\.mjs\n\s+its failing old tests: 1 fail on the old code here too/);
+  assert.match(r.out, /^NOT JUDGED/m);
+
+  // An old file that does not even load on its own code.
+  dir = repo({ 'src/add.mjs': ADD, 'test/gone.test.mjs': "import { gone } from '../src/gone.mjs';\ntest('gone', () => gone());\n" });
+  onBranch(dir, 'gone', { 'test/gone.test.mjs': "import { gone } from '../src/gone.mjs';\ntest('still gone', () => gone());\n" });
+  r = goalpost(dir);
+  assert.match(r.out, /UNKNOWN\s+test\/gone\.test\.mjs\n\s+the old file does not run on its own code here either/);
+});
+
 test('goalpost: an added skip is reported as a signal', () => {
   const dir = repo();
   onBranch(dir, 'skip', { 'test/add.test.mjs': ADD_TEST.replace("test('adds", "test.skip('adds") });
@@ -1480,6 +1511,60 @@ test('goalpost on pytest: a moved expectation, with the values pytest printed', 
   assert.match(r.out, /MOVED\s+tests\/test_calc\.py/);
   assert.match(r.out, /✗ test_adds: assert 6 == 5 \(where 6 = add\(2, 3\)\)/);
   assert.match(card(r), /\*\*Needs a look\*\*[\s\S]*`tests\/test_calc\.py`\n  - ✗ test_adds: assert 6 == 5/);
+});
+
+// A jinja-shaped repository: a source module named tests.py whose functions are named test_*, and an
+// example script named test_*.py. Its pytest config says the tests are in tests/.
+const PY_SRC_TESTS = 'def test_even(value):\n    return value % 2 == 0\n';
+const PY_CONFIGURED = {
+  'pyproject.toml': '[project]\nname = "calc"\n\n[tool.pytest.ini_options]\ntestpaths = ["tests"]\n',
+  'src/calc/tests.py': PY_SRC_TESTS,
+  'examples/test_demo.py': 'print("demo")\n',
+};
+const PY_CONFIGURED_EDITS = { 'src/calc/tests.py': PY_SRC_TESTS.replace('== 0', '!= 1'), 'examples/test_demo.py': 'print("demo 2")\n' };
+
+test("goalpost on pytest: the test files are the ones pytest itself would collect, by the project's config", needsPytest, () => {
+  const dir = pyRepo(PY_CONFIGURED);
+  onBranch(dir, 'moved', { ...PY_MOVED, ...PY_CONFIGURED_EDITS });
+  const r = pyGoalpost(dir);
+  assert.equal(r.code, 2, r.all);
+  assert.match(r.out, /Old versions of 1 edited or deleted test file\(s\)/);
+  assert.match(r.out, /MOVED\s+tests\/test_calc\.py/);
+  assert.doesNotMatch(r.out, /src\/calc\/tests\.py|examples\/test_demo\.py/);
+});
+
+test('history: which PRs edited a test follows the pytest config at that commit', () => {
+  const dir = repo({ 'src/calc/__init__.py': PY_ADD, 'tests/test_calc.py': PY_ADD_TEST, ...PY_CONFIGURED });
+  mergePr(dir, 1, 'docs', 'Tidy the example and the even check', PY_CONFIGURED_EDITS);
+  const out = fs.mkdtempSync(path.join(TMP, 'receipts-history-'));
+  const r = cli(dir, 'history', '--from-git', '--base', 'main', '--out', out, '--plan', '--', 'python', '-m', 'pytest', '{files}');
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /0 of 1 PRs edited or deleted an existing test file/);
+});
+
+test('pytest config: python_files under testpaths, from the first config with a pytest section, found as pytest finds it', () => {
+  const at = (files) => (rel) => files[rel] ?? null;
+  assert.deepEqual(pytestGlobs(at({})), ['**/test_*.py', '**/*_test.py']);
+  assert.deepEqual(pytestGlobs(at({ 'pyproject.toml': PY_CONFIGURED['pyproject.toml'] })), ['tests/**/test_*.py', 'tests/**/*_test.py']);
+  assert.deepEqual(pytestGlobs(at({ 'pytest.ini': '[pytest]\npython_files = tests.py test_*.py ; django\n' })), ['**/tests.py', '**/test_*.py']);
+  assert.deepEqual(pytestGlobs(at({ 'setup.cfg': '[metadata]\nname = x\n\n[tool:pytest]\ntestpaths =\n    tests\n    integration/\n' })), [
+    'tests/**/test_*.py',
+    'tests/**/*_test.py',
+    'integration/**/test_*.py',
+    'integration/**/*_test.py',
+  ]);
+  // The folder the tests run in comes first, then up to the root; a file in testpaths is taken as is.
+  const monorepo = {
+    'pyproject.toml': '[tool.pytest.ini_options]\ntestpaths = ["other"]\n',
+    'apps/api/pyproject.toml': '[tool.pytest.ini_options]\ntestpaths = [\n  "tests",\n  "smoke/test_live.py",\n]\npython_files = "test_*.py check_*.py"\n',
+  };
+  assert.deepEqual(pytestGlobs(at(monorepo), 'apps/api'), ['apps/api/tests/**/test_*.py', 'apps/api/tests/**/check_*.py', 'apps/api/smoke/test_live.py']);
+  assert.deepEqual(pytestGlobs(at(monorepo), 'apps/web'), ['other/**/test_*.py', 'other/**/*_test.py']);
+  // A pyproject.toml without a pytest section doesn't count, so pytest goes on to tox.ini; pytest 9's
+  // own [tool.pytest] table counts; an empty pytest.ini still wins, with pytest's defaults.
+  assert.deepEqual(pytestGlobs(at({ 'pyproject.toml': '[tool.ruff]\nline-length = 100\n', 'tox.ini': '[tox]\nenvlist = py\n\n[pytest]\npython_files = check_*.py\n' })), ['**/check_*.py']);
+  assert.deepEqual(pytestGlobs(at({ 'pyproject.toml': '[tool.pytest]\ntestpaths = ["t"]\n' })), ['t/**/test_*.py', 't/**/*_test.py']);
+  assert.deepEqual(pytestGlobs(at({ 'pytest.ini': '', 'pyproject.toml': PY_CONFIGURED['pyproject.toml'] })), ['**/test_*.py', '**/*_test.py']);
 });
 
 test('goalpost on pytest: a list that only grew is low risk; an added skip marker never is', needsPytest, () => {

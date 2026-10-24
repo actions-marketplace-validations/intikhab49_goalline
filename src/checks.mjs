@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { commitOf, diffNameStatus, mergeBase, repoName, repoRoot, treeOf } from './git.mjs';
-import { defaultTests, runnerOf } from './runners.mjs';
+import { commitOf, diffNameStatus, mergeBase, readAt, repoName, repoRoot, treeOf } from './git.mjs';
+import { runnerOf, testGlobs } from './runners.mjs';
 import { ensureKey, signStatement } from './sign.mjs';
 import { allocReceipt, buildStatement, toolchain, writeReceipt } from './store.mjs';
 import { commandLine, firstUsefulLine, list, matcher, quoteArg, relativize, spawnCapture, stripAnsi, toPosix, UsageError } from './util.mjs';
@@ -40,7 +40,8 @@ export function loadContext(opts, command, kind) {
     headTree: treeOf(root, head),
     cwdRel,
     gate: opts.gate || `${kind}${cwdRel ? `-${path.posix.basename(cwdRel)}` : ''}`,
-    isTest: matcher(opts.tests ? list(opts.tests) : defaultTests(command)),
+    // Which files hold tests: --tests, else the runner's rules (pytest's own config at the base).
+    isTest: matcher(opts.tests ? list(opts.tests) : testGlobs(command, { read: (rel) => readAt(root, mb, rel)?.toString('utf8') ?? null, cwd: cwdRel })),
     inCwd: (p) => !cwdRel || p.startsWith(`${cwdRel}/`),
     changes: diffNameStatus(root, mb, head),
     depsFrom: path.resolve(opts.depsFrom || root),

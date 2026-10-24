@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { onlyAdded, typeError } from './goalpost.mjs';
 import { foreignRunners } from './machine.mjs';
-import { defaultTests } from './runners.mjs';
+import { testGlobs } from './runners.mjs';
 import { commandLine, list, matcher, UsageError } from './util.mjs';
 
 const BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'goalline.mjs');
@@ -87,7 +87,17 @@ export async function cmdHistory(opts, command) {
   };
   const readRows = (file = resultsFile) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);
   const keyOf = (pr, phase, area) => `${pr}:${area}${phase === 'first' ? '@first' : ''}`;
-  const testsOf = (area) => matcher(area.tests ? list(area.tests) : defaultTests([area.command]));
+  // Which files hold tests at a commit: --tests, else the runner's rules (pytest's own config then).
+  const testsOf = (area, at) => {
+    if (area.tests) return matcher(list(area.tests));
+    const listed = new Map();
+    const read = (rel) => {
+      const dir = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
+      if (!listed.has(dir)) listed.set(dir, new Set((tryGit('ls-tree', '--name-only', `${at}:${dir}`) || '').split('\n')));
+      return listed.get(dir).has(rel.slice(rel.lastIndexOf('/') + 1)) ? tryGit('show', `${at}:${rel}`) : null;
+    };
+    return matcher(testGlobs([area.command], { read, cwd: area.cwd || '' }));
+  };
 
   async function waitIdle() {
     if (opts.noMachine) return;
@@ -530,7 +540,7 @@ export async function cmdHistory(opts, command) {
       const changes = ph.skip ? [] : git('diff', '--name-status', '-M', from, ph.head).split('\n').filter(Boolean).map((l) => l.split('\t'));
       for (const area of cfg.areas) {
         if (!todo(keyOf(pr.number, ph.phase, area.name))) continue;
-        const isTest = testsOf(area);
+        const isTest = ph.skip ? () => false : testsOf(area, from);
         // An existing test file edited or deleted (renames count only with edits, as in goalpost):
         // the naive rule "this PR touched a test" fires here.
         const editedStatus = (s) => /^[MDT]/.test(s) || (/^R\d+$/.test(s) && Number(s.slice(1)) < 100);

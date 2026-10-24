@@ -42,6 +42,13 @@ FLAGGED, LOW, HELD = (h.LEDGER.count(c) for c in "flh")
 EDITED = len(h.LEDGER)
 CLICK = {"replayed": 200, "not_judged": 0, "minutes": "about 2 minutes", "through": "2026-10-04",
          "pytest": "pytest 9.0.2 on Python 3.11", "first_heads": 199}
+# Every flag from both replays, with the PR's own reason: docs/data/benchmark-flags.json.
+BENCH = json.loads((DOCS / "data" / "benchmark-flags.json").read_text(encoding="utf-8"))
+REPOS, FLAGS = BENCH["repos"], BENCH["flags"]
+TOTAL = {k: sum(r[k] for r in REPOS.values()) for k in ("replayed", "edited", "needsALook", "lowRisk", "held", "notJudged")}
+UNSAID = [f for f in FLAGS if f["label"] == "intended, not in the changelog"]
+assert (EDITED, FLAGGED, LOW, HELD) == tuple(REPOS["pallets/click"][k] for k in ("edited", "needsALook", "lowRisk", "held"))
+assert len(FLAGS) == TOTAL["needsALook"] + TOTAL["lowRisk"], "one entry per flag"
 QUOTE = "an LLM agent with access to unit tests may delete failing tests rather than fix the underlying bug"
 
 
@@ -312,15 +319,16 @@ GUIDES = [
              "files make, and a pass that read the clock counts only until the next midnight.",
      "blurb": "which tests read the real clock, and passes that expire"},
     {"path": "benchmark/", "crumb": "Benchmark",
-     "title": "Replaying 200 merged pull requests of pallets/click",
-     "h1": "Replaying 200 merged pull requests of pallets/click",
-     "desc": f"goalline history on pallets/click: of the last 200 merged PRs, {EDITED} edited a test, {HELD} kept "
-             f"every old test passing and {FLAGGED} moved an expectation.",
-     "lead": f"`goalline history` ran goalpost on the last {CLICK['replayed']} merged pull requests of "
-             f"[pallets/click](https://github.com/pallets/click). {EDITED} edited an existing test. {HELD} of those "
-             f"kept every old test passing, and {FLAGGED} moved an expectation, each shown with its old and new "
-             f"values. It took {CLICK['minutes']} of machine time.",
-     "blurb": f"{FLAGGED} of {EDITED} test-editing PRs moved an expectation"},
+     "title": "Replaying 400 merged PRs of pallets/click and pallets/jinja",
+     "h1": "Replaying 400 merged pull requests of pallets/click and pallets/jinja",
+     "desc": f"goalline history on the last 200 merged PRs of click and jinja: {TOTAL['edited']} edited a test, "
+             f"{len(FLAGS)} were flagged, and every flag was a deliberate change its PR explains.",
+     "lead": f"`goalline history` ran goalpost on the last 200 pull requests merged into `main` of "
+             f"[pallets/click](https://github.com/pallets/click) and [pallets/jinja](https://github.com/pallets/jinja). "
+             f"{TOTAL['edited']} edited an existing test, and {len(FLAGS)} were flagged with their old and new values. "
+             f"Every flag was a deliberate change that its PR explains in one line, and {len(UNSAID)} changed what "
+             "users see without the changelog saying so.",
+     "blurb": f"{len(FLAGS)} flags on 400 merged PRs, each with its PR's reason"},
     {"path": "commands/", "crumb": "Commands",
      "title": "goalline command reference: run, verify, goalpost, guard",
      "h1": "goalline command reference",
@@ -375,7 +383,8 @@ VERDICTS = [
                 "fixtures or mocks lack something the new code needs. Not judged; for Jest and Vitest, the "
                 "assertion transplant then runs the old expectations with the new file's setup.", "yes, not judged"],
     ["EMPTY", "No old tests ran in that file.", "no"],
-    ["UNKNOWN", "The test runner did not report the file.", "yes, not judged"],
+    ["UNKNOWN", "The test runner did not report the file, or its failing old tests fail on the old code too (the "
+                "environment or a flaky test), so they say nothing about the change.", "yes, not judged"],
 ]
 
 FAQ = [
@@ -387,9 +396,9 @@ FAQ = [
      "Because CI runs the new tests on the new code. When a change edits the code and its test in the same diff, "
      "the suite passes either way, so a green check can't tell you whether behaviour changed."),
     ("Is a flagged pull request a bug?",
-     "No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, "
-     "maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved "
-     "so the reviewer can confirm it was intended."),
+     f"No. A flag means a person should look. On the last 200 merged PRs of pallets/click and pallets/jinja, all "
+     f"{len(FLAGS)} flags were deliberate changes, and {len(UNSAID)} of them changed what users see without the "
+     "changelog saying so. goalline shows exactly what moved, so the reviewer can confirm it was intended."),
     ("Does goalline use AI or an LLM?",
      "No. It runs your own test runner on two versions of your code and compares the results. No source code "
      "leaves the machine."),
@@ -453,11 +462,11 @@ code has to run again.</p>
     ["**Catch**", "`goalpost` · `prove-red` · `guard` · `history`", "Old tests on new code, new tests that must "
      "fail on the old code first, a Claude Code Stop hook, and all of it replayed on your merged pull requests."]])}
 {p("Jest, Vitest and pytest are judged test by test; any other command file by file. Zero dependencies.")}
-<h2>On 200 real pull requests</h2>
-{p(f"On [pallets/click]({SITE}benchmark/)'s last {CLICK['replayed']} merged pull requests, {EDITED} edited an "
-   f"existing test. {HELD} kept every old test passing and **{FLAGGED} moved an expectation**, each shown with its "
-   f"old and new values; {LOW} more were low risk. That took {CLICK['minutes']} of machine time. A flag is not a "
-   "bug report: it means a person should look.")}
+<h2>On 400 real pull requests</h2>
+{p(f"On the last 200 merged pull requests of [pallets/click and pallets/jinja]({SITE}benchmark/), "
+   f"{TOTAL['edited']} edited an existing test and **{len(FLAGS)} were flagged**, each with its old and new "
+   f"values. Every flag was a deliberate change that its PR explains in one line, and {len(UNSAID)} changed what "
+   "users see without the changelog saying so. A flag is not a bug report: it means a person should look.")}
 <h2>On every pull request</h2>
 {p(f"The [GitHub Action]({SITE}github-action/) puts the card on the job summary ([on the Marketplace]({MARKET})):")}
 {pre(ACTION_YAML)}
@@ -514,6 +523,8 @@ def how_it_works(terminal: str) -> tuple[str, str]:
      "Take their **old** versions, from the base.",
      "Run them on the **new** code in a scratch copy of the head commit, using your checkout's installed packages. "
      "Nothing in your checkout changes.",
+     "Run the failing ones on the old code too, the same way: a test that fails there as well (an environment "
+     "that changed since, a flaky test) says nothing about the change and isn't counted.",
      "Compare: an old test that now fails means behaviour changed, and the change's own edit to that test hid it."])}
 {p("This is real goalline output for a change that made `add(2, 3)` return 6 and edited the test's 5 to 6:")}
 {pre(terminal)}
@@ -745,30 +756,72 @@ def clock_page() -> tuple[str, str]:
     return article(g, body)
 
 
+def flag_rows(repo: str) -> str:
+    rows = []
+    for f in (x for x in FLAGS if x["repo"] == repo):
+        kind = f["label"] + (f" ({f['note']})" if f.get("note") else "")
+        title = f["title"].replace("``", "`")
+        rows.append([f"[#{f['pr']}](https://github.com/{repo}/pull/{f['pr']}) {title}", f["moved"], f["why"], kind])
+    return table(["PR", "What moved", "Why", "Kind"], rows)
+
+
 def benchmark_page() -> tuple[str, str]:
     g = G["benchmark/"]
+    c, j = REPOS["pallets/click"], REPOS["pallets/jinja"]
+    rows = [("Merged PRs replayed", "replayed"), ('Edited an existing test (a "test changed" alarm fires on every one)', "edited"),
+            ("Needs a look: an old expectation moved, shown with its old and new values", "needsALook"),
+            ("Low risk: the old test fails, but the PR only added lines to it", "lowRisk"),
+            ("Kept every old test passing", "held"), ("Could not be judged", "notJudged")]
+    summary = table(["", "pallets/click", "pallets/jinja"],
+                    [[label, str(c[k]), str(j[k])] for label, k in rows] + [["Machine time", c["machine"], j["machine"]]])
+    unsaid = ul([f"[{f['repo'].split('/')[1]} #{f['pr']}](https://github.com/{f['repo']}/pull/{f['pr']}): {f['moved']}."
+                 for f in UNSAID])
+    not_judged = ul([f"[#{n}](https://github.com/pallets/jinja/pull/{n}): {why}." for n, why in j["notJudgedWhy"].items()])
+    found = ul(["**Which files are tests.** goalline took any file named `test_*.py` or `tests.py` as a test, so jinja's "
+                "`src/jinja2/tests.py` (code whose functions are named `test_odd`) and the scripts in its `examples/` were "
+                "flagged. It now takes the files pytest itself would collect: `python_files` under `testpaths`, from the "
+                "project's pytest config.",
+                "**Whose failure it is.** On Python 3.11, some of jinja's 2020 tests fail on their own code (tracebacks print "
+                "differently), which read as moved expectations. goalpost now runs a failing old test on the old code too, "
+                "and counts it only if it passes there."])
+    how = ul(["The last 200 pull requests merged into `main`, following `main`'s first parents. A PR merged into another "
+              "branch first (both projects keep a `stable` branch) is not among them.",
+              "Each PR was judged on its merge commit against its first parent, so it sees the change exactly as it landed.",
+              f"click, up to {CLICK['through']}: {c['env']}.",
+              f"jinja: {j['env']}. jinja's last push was in June 2025, so its 200 PRs reach back to January 2020."])
     body = f"""<img src="../charts/click-history.png" alt="goalline on pallets/click, the last 200 merged PRs: {EDITED} edited an existing test, {HELD} kept every old test passing, {FLAGGED} were flagged with their old and new values, {LOW} were low risk, 0 could not be judged." width="980">
-{table(["", "PRs"], [
-    ["Merged PRs replayed", str(CLICK["replayed"])],
-    ['Edited an existing test (a "test changed" alarm fires on every one)', str(EDITED)],
-    ["Kept every old test passing", f"**{HELD}**"],
-    ["Flagged: an old expectation moved, shown with its old and new values", f"**{FLAGGED}**"],
-    ["Low risk: the old test fails, but the PR only added lines to it", str(LOW)],
-    ["Could not be judged", str(CLICK["not_judged"])],
-    ["Machine time", CLICK["minutes"]]])}
-{p(f"Each PR was judged on its merge commit against its first parent, with {CLICK['pytest']}, for the merged PRs "
-   f"up to {CLICK['through']}.")}
+{summary}
+<h2>What users see, and the changelog doesn't say</h2>
+{p(f"Every flag was a deliberate change. These {len(UNSAID)} also changed what users see, and the changelog doesn't "
+   "mention them: a reviewer sees them only because the old test ran.")}
+{unsaid}
+<h2>Every flag, and why</h2>
+{p("The reasons come from each PR's title and text, its changelog lines and click's docs. Test plumbing is a test "
+   "that imported a private helper the PR removed: nothing users see changed.")}
+<h3>pallets/jinja</h3>
+{flag_rows("pallets/jinja")}
+<h3>pallets/click</h3>
+{flag_rows("pallets/click")}
+<h2>What it found in goalline itself</h2>
+{p("jinja found two sources of false flags in goalline, both fixed in 0.13.0. Re-run with both fixes, click's numbers "
+   "did not change.")}
+{found}
+<h2>How it was run</h2>
+{how}
+{p("Not judged on jinja:")}
+{not_judged}
 <h2>A flag is not a bug report</h2>
-{p("click's maintainers changed behaviour on purpose and updated the tests to match. In "
-   "[#3239](https://github.com/pallets/click/pull/3239), a `--flag` option with `prompt=True, default=True, "
-   "flag_value=False` went from `Flag [y/N]:` (Enter gives `False`) to `Flag [Y/n]:` (Enter gives `True`), with "
-   "three lines of a test table edited to match and all 11 CI checks green. That is the point: a reviewer sees the "
-   "change and its values, not just a green check.",
-   f"Judged as first opened as well (`--first-heads`, {CLICK['first_heads']} PRs), no PR edited a test to hide a "
-   "change that review then took back.")}
+{p("In [#3239](https://github.com/pallets/click/pull/3239), a click `--flag` option with `prompt=True, default=True, "
+   "flag_value=False` went from `Flag [y/N]:` (Enter gives `False`) to `Flag [Y/n]:` (Enter gives `True`), with three "
+   "lines of a test table edited to match and all 11 CI checks green. It was intended. That is the point: a reviewer "
+   "sees the change and its values, not just a green check.",
+   f"click was also judged as each PR was first opened (`--first-heads`, {CLICK['first_heads']} PRs): no PR edited a "
+   "test to hide a change that review then took back.")}
 <h2>Reproduce it</h2>
-{p("Clone click, install it and pytest into a virtualenv, activate it, and run:")}
+{p("Clone the project, install it, pytest and its test dependencies into a virtualenv, activate it, and run:")}
 {pre(f"{NPX} history --from-git --limit 200 -- python -m pytest {{files}}")}
+{p("jinja's PRs from 2020 and early 2021 need the packages of that time (pytest 6.2.5, MarkupSafe 1.1.1): run those "
+   "with a second virtualenv and `--only <PR numbers>` into the same `--out` folder.")}
 <h2>Run it on your repository</h2>
 {pre(f"{NPX} history --from-git -- npx jest {{files}}")}
 {p("It writes `goalline-history/report.md`: the PRs that need a look, with the old and new values, next to the "
@@ -809,8 +862,10 @@ def llms(help_text: str) -> tuple[str, str]:
              "timers don't count.",
              "- Jest, Vitest and pytest are judged test by test; any other runner file by file, by exit code.",
              f"- GitHub Action: `uses: intikhab49/goalline@v0` with `command: npx jest {{files}}`. Marketplace: {MARKET}",
-             f"- Benchmark: on pallets/click's last 200 merged PRs, {EDITED} edited a test, {HELD} kept every old "
-             f"test passing, {FLAGGED} were flagged with values and {LOW} were low risk, in {CLICK['minutes']}.",
+             f"- Benchmark: on the last 200 merged PRs of pallets/click and pallets/jinja, {TOTAL['edited']} edited a "
+             f"test and {len(FLAGS)} were flagged with their old and new values. Every flag was a deliberate change "
+             f"its PR explains, and {len(UNSAID)} changed what users see without the changelog saying so. Every flag "
+             f"with its reason: {SITE}benchmark/",
              "- No AI model is involved and no source code leaves the machine.",
              "- Independent project by Intikhab Azam.", "",
              "## Guides", ""]

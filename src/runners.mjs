@@ -9,7 +9,7 @@ import { clip, failureSummary, relativize, stripAnsi } from './util.mjs';
 // how its failure reads. Any other runner is run one file at a time and judged by its exit code.
 
 const JS_TESTS = ['**/*.{spec,test}.{js,jsx,ts,tsx,mjs,cjs,mts,cts}', '**/*.e2e-spec.{js,ts}', '**/__tests__/**/*.{js,jsx,ts,tsx,mjs,cjs}'];
-const PYTHON_TESTS = ['**/test_*.py', '**/*_test.py', '**/tests.py'];
+const PYTHON_TESTS = ['**/test_*.py', '**/*_test.py'];
 
 // Where a TypeError or ReferenceError was thrown: 'code', 'test', or null for any other failure. The
 // first stack frame inside the project decides; Node's own frames and node_modules are skipped.
@@ -127,3 +127,67 @@ const pytest = {
 
 export const runnerOf = (command) => [jest, vitest, pytest].find((r) => command.some((a) => r.word.test(a))) || null;
 export const defaultTests = (command) => (runnerOf(command) || jest).tests;
+
+// pytest's own rule for which files hold tests: python_files (by default test_*.py and *_test.py)
+// under testpaths, from the first config file with a pytest section, looked for as pytest does, from
+// the folder the tests run in up to the repository root. pytest collects any file named on its
+// command line, so goalline must not name the wrong ones: jinja's src/jinja2/tests.py is code whose
+// functions are named test_odd, and its examples/ hold scripts named test_*.py.
+const PY_CONFIGS = [
+  ['pytest.ini', null],
+  ['.pytest.ini', null],
+  ['pyproject.toml', /^\[tool\.pytest(?:\.ini_options)?\]$/],
+  ['tox.ini', /^\[pytest\]$/],
+  ['setup.cfg', /^\[tool:pytest\]$/],
+];
+
+// The lines of a config file's pytest section, or null without one (a pytest.ini counts even empty).
+function pytestSection(text, header) {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const start = lines.findIndex((l) => (header || /^\[pytest\]$/).test(l.trim()));
+  if (start === -1) return header ? null : [];
+  const end = lines.findIndex((l, i) => i > start && /^\s*\[[^\]]+\]\s*$/.test(l));
+  return lines.slice(start + 1, end === -1 ? undefined : end);
+}
+
+// One option's values: a TOML string or array (over several lines too), or an ini value whose
+// indented lines continue it. Several patterns in one string are split on whitespace.
+function optionValues(lines, key, toml) {
+  const i = lines.findIndex((l) => new RegExp(`^${key}\\s*=`).test(l.trim()));
+  if (i === -1) return null;
+  let text = lines[i].slice(lines[i].indexOf('=') + 1);
+  if (toml) {
+    for (let j = i + 1; text.trim().startsWith('[') && !text.includes(']') && j < lines.length; j++) text += `\n${lines[j]}`;
+    const strings = [...text.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)].map((m) => m[1] ?? m[2]);
+    return strings.flatMap((s) => s.split(/\s+/)).filter(Boolean);
+  }
+  for (let j = i + 1; j < lines.length && /^\s+\S/.test(lines[j]); j++) text += `\n${lines[j]}`;
+  return text.replace(/\s[#;].*$/gm, '').split(/\s+/).filter(Boolean);
+}
+
+// Test-file globs for a pytest command. read(rel) gives a file's text at the commit judged, or null.
+export function pytestGlobs(read, cwd = '') {
+  const dirs = [];
+  for (let d = cwd.replace(/^\.?\/*|\/+$/g, ''); ; d = d.includes('/') ? d.slice(0, d.lastIndexOf('/')) : '') {
+    dirs.push(d);
+    if (!d) break;
+  }
+  for (const dir of dirs) {
+    for (const [name, header] of PY_CONFIGS) {
+      const text = read(dir ? `${dir}/${name}` : name);
+      if (text == null) continue;
+      const lines = pytestSection(text, header);
+      if (!lines) continue;
+      const toml = name.endsWith('.toml');
+      const files = optionValues(lines, 'python_files', toml) || ['test_*.py', '*_test.py'];
+      const at = (p) => (dir ? `${dir}/${p}` : p);
+      const paths = (optionValues(lines, 'testpaths', toml) || []).map((p) => p.replace(/^\.\/|\/+$/g, '')).filter((p) => p && p !== '.');
+      if (!paths.length) return files.map((f) => `${dir ? `${dir}/` : ''}**/${f}`);
+      return paths.flatMap((p) => (p.endsWith('.py') ? [at(p)] : files.map((f) => `${at(p)}/**/${f}`)));
+    }
+  }
+  return ['**/test_*.py', '**/*_test.py'];
+}
+
+// The globs that say which changed files are tests: --tests, else the runner's own rules.
+export const testGlobs = (command, { read, cwd } = {}) => (runnerOf(command) === pytest && read ? pytestGlobs(read, cwd) : defaultTests(command));

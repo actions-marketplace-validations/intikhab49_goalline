@@ -46,7 +46,7 @@
    "codeRepository": "https://github.com/intikhab49/goalline",
    "programmingLanguage": "JavaScript",
    "runtimePlatform": "Node.js 20+",
-   "version": "0.12.0",
+   "version": "0.13.0",
    "license": "https://opensource.org/licenses/MIT",
    "isAccessibleForFree": true,
    "keywords": "AI coding agents, test integrity, tests edited to pass, reward hacking, Claude Code hook, GitHub Action, regression testing, Jest, Vitest, pytest, test result caching, in-toto",
@@ -86,7 +86,7 @@
      "name": "Is a flagged pull request a bug?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved so the reviewer can confirm it was intended."
+      "text": "No. A flag means a person should look. On the last 200 merged PRs of pallets/click and pallets/jinja, all 31 flags were deliberate changes, and 4 of them changed what users see without the changelog saying so. goalline shows exactly what moved, so the reviewer can confirm it was intended."
      }
     },
     {
@@ -227,8 +227,8 @@ FLAGGED (1 moved). Old tests no longer pass on the new code: behaviour changed a
 
 <p>Jest, Vitest and pytest are judged test by test; any other command file by file. Zero dependencies.</p>
 
-<h2>On 200 real pull requests</h2>
-<p>On <a href="https://intikhab49.github.io/goalline/benchmark/">pallets/click</a>'s last 200 merged pull requests, 84 edited an existing test. 63 kept every old test passing and <strong>19 moved an expectation</strong>, each shown with its old and new values; 2 more were low risk. That took about 2 minutes of machine time. A flag is not a bug report: it means a person should look.</p>
+<h2>On 400 real pull requests</h2>
+<p>On the last 200 merged pull requests of <a href="https://intikhab49.github.io/goalline/benchmark/">pallets/click and pallets/jinja</a>, 126 edited an existing test and <strong>31 were flagged</strong>, each with its old and new values. Every flag was a deliberate change that its PR explains in one line, and 4 changed what users see without the changelog saying so. A flag is not a bug report: it means a person should look.</p>
 
 <h2>On every pull request</h2>
 <p>The <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> puts the card on the job summary (<a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">on the Marketplace</a>):</p>
@@ -275,12 +275,12 @@ npx github:intikhab49/goalline goalpost --base origin/main -- npx jest {files}
 #   pytest:  -- python -m pytest {files}</code></pre>
 
 <h2>Guides</h2>
-<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How to tell if an AI coding agent edited a test to make it pass</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Stop Claude Code from editing tests to pass</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/github-action/">A GitHub Action that catches tests edited to pass</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">Check that new tests fail on the old code</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip CI tests that the exact same code already passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Test caching that notices when the database schema changed</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">Find the tests that read the real clock</a>: which tests read the real clock, and passes that expire</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Replaying 200 merged pull requests of pallets/click</a>: 19 of 84 test-editing PRs moved an expectation</li><li><a href="https://intikhab49.github.io/goalline/commands/">goalline command reference</a>: every command and option</li></ul>
+<ul><li><a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How to tell if an AI coding agent edited a test to make it pass</a>: old tests on new code, the verdicts, and what it can't catch</li><li><a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Stop Claude Code from editing tests to pass</a>: a Stop hook that won't let the agent finish until it explains a moved test</li><li><a href="https://intikhab49.github.io/goalline/github-action/">A GitHub Action that catches tests edited to pass</a>: one step in a workflow, with Jest, Vitest or pytest</li><li><a href="https://intikhab49.github.io/goalline/prove-red/">Check that new tests fail on the old code</a>: new tests must fail on the base code first, or they test nothing</li><li><a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip CI tests that the exact same code already passed</a>: signed receipts keyed by the git tree, and safe reuse</li><li><a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Test caching that notices when the database schema changed</a>: the database schema on the receipt, with --input db=pg</li><li><a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">Find the tests that read the real clock</a>: which tests read the real clock, and passes that expire</li><li><a href="https://intikhab49.github.io/goalline/benchmark/">Replaying 400 merged pull requests of pallets/click and pallets/jinja</a>: 31 flags on 400 merged PRs, each with its PR's reason</li><li><a href="https://intikhab49.github.io/goalline/commands/">goalline command reference</a>: every command and option</li></ul>
 
 <h2>FAQ</h2>
 <h3>How do I know if an AI coding agent changed a test to make it pass?</h3><p>Run the old version of every test the change edited against the new code. If an old test now fails, behaviour changed and the test was rewritten to match. <code>goalline goalpost</code> does exactly that and shows the old and new values, for example <code>Expected 5, received 6</code>.</p>
 <h3>Why doesn&#x27;t CI catch a test that was edited to pass?</h3><p>Because CI runs the new tests on the new code. When a change edits the code and its test in the same diff, the suite passes either way, so a green check can't tell you whether behaviour changed.</p>
-<h3>Is a flagged pull request a bug?</h3><p>No. A flag means a person should look. Many changes move an expectation on purpose: on pallets/click, maintainers changed behaviour deliberately and updated the tests to match. goalline shows exactly what moved so the reviewer can confirm it was intended.</p>
+<h3>Is a flagged pull request a bug?</h3><p>No. A flag means a person should look. On the last 200 merged PRs of pallets/click and pallets/jinja, all 31 flags were deliberate changes, and 4 of them changed what users see without the changelog saying so. goalline shows exactly what moved, so the reviewer can confirm it was intended.</p>
 <h3>Does goalline use AI or an LLM?</h3><p>No. It runs your own test runner on two versions of your code and compares the results. No source code leaves the machine.</p>
 <h3>Which test runners does goalline support?</h3><p>Jest, Vitest and pytest are judged test by test. Any other command is judged file by file, by its exit code.</p>
 <h3>How do I stop Claude Code from editing tests to pass?</h3><p>Add <code>goalline guard --hook</code> as a Claude Code Stop hook. Before the agent may finish, the old tests it edited run against its work; a moved expectation sends it back to work until it restores the behaviour or records why the change is intended.</p>
@@ -292,7 +292,7 @@ npx github:intikhab49/goalline goalpost --base origin/main -- npx jest {files}
 
 </main>
 <footer>
-goalline 0.12.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
+goalline 0.13.0 · MIT · free and open source · by <a href="https://github.com/intikhab49">Intikhab Azam</a> ·
 <a href="https://github.com/intikhab49/goalline">Source</a> · <a href="https://github.com/marketplace/actions/goalline-catch-ai-edited-tests">GitHub Marketplace</a> · <a href="https://intikhab49.github.io/goalline/llms.txt">llms.txt</a><br>
 Guides: <a href="https://intikhab49.github.io/goalline/catch-ai-edited-tests/">How it works</a> · <a href="https://intikhab49.github.io/goalline/claude-code-stop-hook/">Claude Code hook</a> · <a href="https://intikhab49.github.io/goalline/github-action/">GitHub Action</a> · <a href="https://intikhab49.github.io/goalline/prove-red/">prove-red</a> · <a href="https://intikhab49.github.io/goalline/skip-tests-already-passed/">Skip what passed</a> · <a href="https://intikhab49.github.io/goalline/database-schema-inputs/">Database inputs</a> · <a href="https://intikhab49.github.io/goalline/tests-that-read-the-clock/">The clock</a> · <a href="https://intikhab49.github.io/goalline/benchmark/">Benchmark</a> · <a href="https://intikhab49.github.io/goalline/commands/">Commands</a>
 </footer>
